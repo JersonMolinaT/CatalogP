@@ -1,0 +1,15 @@
+# --- Secretos y entorno (NUNCA se suben) ---
+backend/.env
+.env
+
+# --- Dependencias y artefactos ---
+node_modules/
+backend/node_modules/
+
+# --- Comprimidos y temporales ---
+*.zip
+*.log
+backups/
+__pycache__/
+.DS_Store
+Thumbs.db

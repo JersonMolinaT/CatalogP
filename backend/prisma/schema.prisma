@@ -1,0 +1,52 @@
+// Base de datos del backend — Perfumes Originales (rifas en tiempo real)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Usuario administrador (login del panel)
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// Una rifa (Rifa 1, Rifa 2, ...)
+model Raffle {
+  id         String         @id @default(cuid())
+  name       String
+  prizeSku   String?
+  prizeName  String?
+  prizeImage String?        // nombre de archivo de la foto del premio
+  price      Int            @default(30000)
+  currency   String         @default("COP")
+  lottery    String?
+  drawDate      String?     // "YYYY-MM-DD" o vacío
+  drawInfo      String?
+  active        Boolean     @default(true)
+  winningNumber String?     // boleta ganadora "01".."10" (vacío = aún sin sorteo)
+  drawResult    String?     // resultado/número de la lotería que se anotó
+  finishedAt    DateTime?   // cuándo se cerró/sorteó
+  createdAt     DateTime    @default(now())
+  numbers       RaffleNumber[]
+}
+
+// Cada boleta 01..10 de una rifa
+model RaffleNumber {
+  id         Int       @id @default(autoincrement())
+  raffle     Raffle    @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  raffleId   String
+  number     String    // "01".."10"
+  status     String    @default("available") // available | reserved | sold
+  payment    String    @default("")          // "" | paid | pending
+  buyerName  String    @default("")
+  buyerPhone String    @default("")
+  reservedAt DateTime?
+
+  @@unique([raffleId, number]) // evita duplicar el número dentro de la rifa
+}

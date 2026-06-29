@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Perfumes Originales · Catálogo Premium</title>
+<meta name="description" content="Catálogo Premium de perfumes 100% originales — Lattafa, Milan Parfums y más. Consulta y cotiza por WhatsApp.">
+<meta name="theme-color" content="#0b0b0d">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Perfumes Originales · Catálogo Premium">
+<meta property="og:description" content="Fragancias originales. Elegancia que perdura. Consulta y cotiza por WhatsApp.">
+<meta property="og:locale" content="es_CO">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,500;1,700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar" id="topbar"></div>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#top" class="logo"><span class="dot"></span>Perfumes <b>Originales</b></a>
+    <nav class="nav-links">
+      <a href="#catalogo" data-nav>Catálogo</a>
+      <a href="#categorias" data-nav>Categorías</a>
+      <a href="#marcas" data-nav>Marcas</a>
+      <a href="rifas.html">Rifas</a>
+      <a href="#contacto" data-nav>Contacto</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="searchToggle" aria-label="Buscar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Cambiar tema">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="icon-btn" id="favToggle" aria-label="Favoritos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        <span class="badge" id="favBadge">0</span>
+      </button>
+      <button class="icon-btn burger" id="burger" aria-label="Menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#catalogo" data-nav>Catálogo</a>
+  <a href="#categorias" data-nav>Categorías</a>
+  <a href="#marcas" data-nav>Marcas</a>
+  <a href="rifas.html">Rifas</a>
+  <a href="#contacto" data-nav>Contacto</a>
+</div>
+
+<span id="top"></span>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Fragancias de autor · 100% originales</span>
+      <h1>El arte de <em>oler</em><br>inolvidable.</h1>
+      <p class="lead" id="heroTag">Una colección curada de perfumes originales. Descúbrelos, guárdalos y cotiza al instante por WhatsApp.</p>
+      <div class="hero-cta">
+        <a href="#catalogo" class="btn btn-gold btn-lg">Ver catálogo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a href="#" id="heroWa" class="btn btn-ghost btn-lg">Comprar por WhatsApp</a>
+      </div>
+      <div class="hero-stats">
+        <div class="s"><b id="statProducts">—</b><span>Referencias</span></div>
+        <div class="s"><b id="statBrands">—</b><span>Marcas</span></div>
+        <div class="s"><b>100%</b><span>Originales</span></div>
+      </div>
+    </div>
+    <div class="hero-art" id="heroArt"></div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<section class="section" id="categorias">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Explora</span>
+      <h2>Categorías</h2>
+      <p>Encuentra tu próxima fragancia por estilo y ocasión.</p>
+    </div>
+    <div class="cats" id="catsGrid"></div>
+  </div>
+</section>
+
+<!-- CATALOG -->
+<section class="section" id="catalogo" style="padding-top:10px">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Colección</span>
+      <h2>Catálogo</h2>
+      <p>Filtra, busca y descubre cada perfume en detalle.</p>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-ghost filters-toggle" id="filtersToggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        Filtros</button>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar perfume, marca o nota..." autocomplete="off">
+        <div class="autocomplete" id="autocomplete"></div>
+      </div>
+      <div class="select">
+        <select id="sortSelect">
+          <option value="relevance">Destacados</option>
+          <option value="name">Nombre (A–Z)</option>
+          <option value="brand">Marca</option>
+          <option value="new">Más nuevos</option>
+          <option value="price-asc">Precio: menor a mayor</option>
+          <option value="price-desc">Precio: mayor a menor</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="cat-layout">
+      <aside class="filters" id="filtersPanel">
+        <div id="filterGroups"></div>
+        <button class="clear" id="clearFilters">Limpiar filtros</button>
+      </aside>
+      <div>
+        <div class="result-count" id="resultCount"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BRANDS -->
+<section class="section" id="marcas" style="background:var(--bg-2)">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Casas de perfumería</span>
+      <h2>Nuestras marcas</h2>
+      <p>Trabajamos con casas reconocidas por su calidad y carácter.</p>
+    </div>
+    <div class="cats" id="brandsGrid"></div>
+  </div>
+</section>
+
+<!-- CONTACT / CTA -->
+<section class="section" id="contacto">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">¿Listo para elegir?</span>
+      <h2>Te asesoramos por WhatsApp</h2>
+      <p>Escríbenos y te ayudamos a encontrar la fragancia perfecta. Respuesta rápida y atención personalizada.</p>
+      <div style="margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="#" id="ctaWa" class="btn btn-wa btn-lg">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 0 1 8.413 3.488 11.82 11.82 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.512 5.26l-.999 3.648 3.985-1.052zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.017-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          Escribir ahora
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <a href="#top" class="logo"><span class="dot"></span>Perfumes <b>Originales</b></a>
+        <p id="footAbout">Catálogo Premium de fragancias originales. Asesoría y cotización inmediata por WhatsApp.</p>
+      </div>
+      <div>
+        <h5>Navegar</h5>
+        <a href="#catalogo" data-nav>Catálogo</a>
+        <a href="#categorias" data-nav>Categorías</a>
+        <a href="#marcas" data-nav>Marcas</a>
+      </div>
+      <div>
+        <h5>Contacto</h5>
+        <a href="#" id="footWa">WhatsApp</a>
+        <a href="#catalogo" data-nav>Cómo comprar</a>
+        <a href="#" id="footLoc"></a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year"></span> Perfumes Originales. Todos los derechos reservados.</span>
+      <span>Diseño Premium · Hecho con dedicación.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- PRODUCT MODAL -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal-bg" id="modalBg"></div>
+  <div class="modal-card">
+    <button class="m-close" id="modalClose" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="modal-grid" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- FLOAT WA -->
+<a href="#" id="waFloat" class="wa-float" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 0 1 8.413 3.488 11.82 11.82 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.512 5.26l-.999 3.648 3.985-1.052zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.017-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+</a>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/products-data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

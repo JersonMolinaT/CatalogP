@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rifas · Perfumes Originales</title>
+<meta name="description" content="Participa en las rifas de perfumes originales. Boletas desde $30.000. Elige tu número y aparta.">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.rf-hero{padding:120px 0 30px;background:radial-gradient(120% 90% at 80% 10%,rgba(201,162,75,.20),transparent 55%),linear-gradient(180deg,var(--bg),var(--bg-2))}
+.rf-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px}
+.rf-tab{border:1px solid var(--line-2);border-radius:50px;padding:10px 20px;font-weight:600;font-size:.9rem;cursor:pointer;transition:.25s;color:var(--muted);display:flex;align-items:center;gap:8px}
+.rf-tab:hover{border-color:var(--gold);color:var(--text)}
+.rf-tab.active{background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep));color:#1a1407;border-color:transparent}
+.rf-tab .mini{font-size:.7rem;opacity:.8}
+.rf-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:center}
+.rf-prize{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line-2);box-shadow:var(--shadow);background:var(--bg-3);aspect-ratio:1/1.05}
+.rf-prize img{width:100%;height:100%;object-fit:cover}
+.rf-prize .ribbon{position:absolute;top:16px;left:16px;background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep));color:#1a1407;font-weight:800;font-size:.8rem;padding:8px 16px;border-radius:50px;letter-spacing:.04em}
+.rf-live{position:absolute;top:16px;right:16px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);border:1px solid var(--line-2);color:#fff;font-size:.7rem;padding:6px 12px;border-radius:50px;display:flex;align-items:center;gap:7px}
+.rf-live .dot{width:8px;height:8px;border-radius:50%;background:#25d366;animation:pls 1.6s infinite}
+@keyframes pls{50%{opacity:.3}}
+.rf-price-tag{display:inline-flex;align-items:baseline;gap:8px;margin:6px 0 10px}
+.rf-price-tag .n{font-family:var(--serif);font-size:2.6rem;font-weight:800;color:var(--gold)}
+.rf-price-tag .u{color:var(--muted);font-size:.9rem}
+.rf-meta{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.rf-meta .chip{border:1px solid var(--line-2);border-radius:50px;padding:7px 14px;font-size:.82rem;color:var(--muted)}
+.rf-meta .chip b{color:var(--text)}
+.progress{height:10px;border-radius:50px;background:var(--surface-2);overflow:hidden;margin:18px 0 8px}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-soft));width:0;transition:.6s}
+.progress-txt{font-size:.84rem;color:var(--muted)}
+.how{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:22px 24px;margin-top:18px}
+.how h4{font-family:var(--display);font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.how ol{margin:0 0 0 18px;color:var(--muted);font-size:.92rem;line-height:1.7}
+.how b{color:var(--text)}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:8px}
+.ticket{position:relative;border:1px solid var(--line-2);border-radius:16px;padding:16px 12px;background:var(--bg-2);text-align:center;cursor:pointer;transition:.25s var(--ease);overflow:hidden}
+.ticket:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:var(--shadow)}
+.ticket .num{font-family:var(--serif);font-size:2.1rem;font-weight:800;line-height:1}
+.ticket .series{font-size:.66rem;color:var(--muted-2);margin-top:8px;line-height:1.4;word-spacing:1px}
+.ticket .state{margin-top:10px;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.ticket.taken{cursor:not-allowed;opacity:.85;border-color:var(--line)}
+.ticket.taken:hover{transform:none;box-shadow:none;border-color:var(--line)}
+.ticket.taken .num{color:var(--muted-2)}
+.ticket.taken .state{color:var(--red)}
+.ticket.taken::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 9px,rgba(224,86,74,.07) 9px,rgba(224,86,74,.07) 18px)}
+.ticket.sel{border-color:var(--gold);box-shadow:var(--shadow-gold)}
+.ticket .pick{position:absolute;top:8px;right:10px;font-size:.62rem;color:var(--gold)}
+.controls{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;align-items:center}
+.manual{display:flex;gap:8px;align-items:center}
+.manual input{width:90px;text-align:center;font-family:var(--serif);font-size:1.2rem;font-weight:700;background:var(--bg-3);border:1px solid var(--line-2);border-radius:12px;padding:10px;color:var(--text)}
+.manual input:focus{outline:none;border-color:var(--gold)}
+.rmodal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.rmodal.open{display:flex}
+.rmodal .bg{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px)}
+.rmodal .box{position:relative;z-index:2;background:var(--bg-2);border:1px solid var(--line);border-radius:20px;width:min(440px,100%);padding:30px;box-shadow:var(--shadow);animation:popIn .35s var(--ease);max-height:92vh;overflow:auto}
+.rmodal .big-num{font-family:var(--serif);font-size:3rem;font-weight:800;color:var(--gold);text-align:center;line-height:1}
+.rmodal .sub{text-align:center;color:var(--muted);font-size:.88rem;margin:4px 0 18px}
+.rmodal label{display:block;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);margin:0 0 6px}
+.rmodal input,.rmodal select{width:100%;background:var(--bg-3);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--text);font-size:.95rem;margin-bottom:14px}
+.rmodal input:focus,.rmodal select:focus{outline:none;border-color:var(--gold)}
+.rmodal .acts{display:flex;gap:10px;margin-top:6px}
+.rf-success{text-align:center}
+.rf-success .check{width:64px;height:64px;border-radius:50%;background:var(--green);display:grid;place-items:center;margin:0 auto 14px;color:#072b14;font-size:2rem}
+.rf-closed{text-align:center;padding:90px 20px;color:var(--muted)}
+@media(max-width:760px){.rf-grid{grid-template-columns:1fr;gap:24px}.board{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<header class="nav scrolled" id="nav">
+  <div class="wrap nav-inner">
+    <a href="index.html" class="logo"><span class="dot"></span>Perfumes <b>Originales</b></a>
+    <nav class="nav-links">
+      <a href="index.html">Catálogo</a>
+      <a href="index.html#categorias">Categorías</a>
+      <a href="rifas.html">Rifas</a>
+      <a href="index.html#contacto">Contacto</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="themeToggle" aria-label="Tema">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <a href="index.html" class="btn btn-ghost" style="padding:10px 18px">← Catálogo</a>
+    </div>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<a href="#" id="waFloat" class="wa-float" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 0 1 8.413 3.488 11.82 11.82 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.512 5.26l-.999 3.648 3.985-1.052zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.017-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+</a>
+
+<div class="rmodal" id="rmodal"><div class="bg" id="rmodalBg"></div><div class="box" id="rmodalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<footer><div class="wrap"><div class="foot-bottom" style="border:none;margin:0;padding:24px 0">
+  <span>© <span id="year"></span> Perfumes Originales · Rifas</span>
+  <a href="index.html" style="color:var(--gold)">Volver al catálogo</a>
+</div></div></footer>
+
+<script src="js/config.js"></script>
+<script src="js/products-data.js"></script>
+<script src="js/rifa-data.js"></script>
+<script>
+(function(){
+"use strict";
+const CFG=window.SITE_CONFIG||{};
+const PRODUCTS=(window.CATALOG&&window.CATALOG.products)||[];
+const IMG="assets/products/";
+const API="/api";
+const $=(s,c)=>(c||document).querySelector(s);
+const $$=(s,c)=>Array.from((c||document).querySelectorAll(s));
+
+let DATA={currency:"COP",raffles:[]};
+let activeRaffles=[], current=null, selected=null, modalOpen=false, pollTimer=null, online=false;
+
+function fmt(v){try{return new Intl.NumberFormat(CFG.currencyLocale||"es-CO",{style:"currency",currency:DATA.currency||"COP",maximumFractionDigits:0}).format(v);}catch(e){return "$"+v;}}
+function waLink(t){return "https://wa.me/"+((CFG.whatsapp||"").replace(/\D/g,""))+"?text="+encodeURIComponent(t);}
+function toast(h){const t=$("#toast");t.innerHTML=h;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),3000);}
+function seriesOf(n){const t=parseInt(n,10);const a=[];for(let k=0;k<10;k++){const v=t+k*10;a.push(v===100?"100":String(v).padStart(2,"0"));}return a;}
+function prizeImg(r){if(r.prizeImage)return IMG+r.prizeImage;const p=PRODUCTS.find(x=>x.sku===r.prizeSku);return p&&p.photos&&p.photos[0]?IMG+p.photos[0]:"";}
+function statusOf(r,n){const x=(r.numbers||[]).find(m=>m.number===n);return x?x.status:"available";}
+
+// ---- cargar rifas (API en vivo; respaldo a datos estáticos) ----
+async function loadRaffles(){
+  try{
+    const res=await fetch(API+"/raffles",{cache:"no-store"});
+    if(!res.ok)throw new Error("api");
+    DATA=await res.json(); online=true;
+  }catch(e){
+    online=false;
+    if(window.RAFFLES&&Array.isArray(window.RAFFLES.raffles)){
+      DATA={currency:window.RAFFLES.currency||"COP",
+        raffles:window.RAFFLES.raffles.map(r=>({...r,numbers:Object.keys(r.numbers||{}).map(n=>({number:n,status:r.numbers[n].status}))}))};
+    }
+  }
+  activeRaffles=(DATA.raffles||[]).filter(r=>r.active!==false);
+  current = current ? (activeRaffles.find(r=>r.id===current.id)||activeRaffles[0]||null) : (activeRaffles[0]||null);
+}
+
+// ---- chrome ----
+$("#themeToggle").addEventListener("click",()=>{
+  const t=document.documentElement.getAttribute("data-theme")==="light"?"dark":"light";
+  document.documentElement.setAttribute("data-theme",t);
+  $("#themeIcon").innerHTML=t==="light"?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/>':'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+  try{localStorage.setItem("po_theme",t);}catch(e){}});
+try{const t=localStorage.getItem("po_theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}
+$("#topbar").textContent=CFG.topBar||""; if(!CFG.topBar)$("#topbar").style.display="none";
+$("#year").textContent=new Date().getFullYear();
+$("#waFloat").href=waLink("¡Hola! Quiero información sobre las rifas de perfume 🎟️");
+
+function render(){
+  if(!activeRaffles.length){
+    $("#app").innerHTML=`<div class="wrap rf-closed" style="padding-top:140px"><h2 class="serif" style="font-size:2rem">No hay rifas activas</h2>
+      <p>Vuelve pronto o escríbenos por WhatsApp para enterarte de la próxima.</p>
+      <a class="btn btn-gold" style="margin-top:16px" href="${waLink("¡Hola! ¿Cuándo es la próxima rifa? 🎟️")}">Avísame por WhatsApp</a></div>`;
+    return;
+  }
+  const r=current||activeRaffles[0];
+  const img=prizeImg(r);
+  const nums=(r.numbers||[]).map(n=>n.number);
+  const taken=nums.filter(n=>statusOf(r,n)!=="available").length;
+  const pct=nums.length?Math.round(taken/nums.length*100):0;
+  const drawDate=r.drawDate?new Date(r.drawDate+"T00:00:00").toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"}):"Por confirmar";
+  const tabs=activeRaffles.length>1?`<div class="rf-tabs">${activeRaffles.map(rr=>{
+    const av=(rr.numbers||[]).filter(n=>n.status==="available").length;
+    return `<div class="rf-tab ${rr.id===r.id?"active":""}" data-raffle="${rr.id}">🎟️ ${rr.name} <span class="mini">· ${av} libres</span></div>`;}).join("")}</div>`:"";
+
+  $("#app").innerHTML=`
+  <section class="rf-hero"><div class="wrap">
+    ${tabs}
+    <div class="rf-grid">
+      <div class="rf-prize">${img?`<img src="${img}" alt="${r.prizeName||''}">`:""}<span class="ribbon">🎁 Premio</span>
+        ${online?'<span class="rf-live"><span class="dot"></span>En vivo</span>':''}</div>
+      <div>
+        <span class="eyebrow">${r.name||"Rifa"}</span>
+        ${r.finished&&r.winningNumber?`<div style="background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep));color:#1a1407;border-radius:14px;padding:13px 18px;margin:10px 0;font-weight:800;font-size:1.05rem">🏆 ¡Rifa finalizada! Boleta ganadora: ${r.winningNumber}</div>`:''}
+        <h1 class="serif" style="font-size:clamp(2rem,4.5vw,3.2rem);font-weight:800;margin:10px 0 4px">${r.prizeName||"Premio"}</h1>
+        <div class="rf-price-tag"><span class="n">${fmt(r.price)}</span><span class="u">por boleta</span></div>
+        <div class="rf-meta">
+          <span class="chip">🎟️ <b>10 boletas</b> (01–10)</span>
+          <span class="chip">🗓️ Sorteo: <b>${drawDate}</b></span>
+          <span class="chip">🎰 <b>${r.lottery||"Lotería"}</b></span>
+        </div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="progress-txt"><b>${taken}</b> de ${nums.length} boletas apartadas · ${nums.length-taken} disponibles</div>
+        <div class="how"><h4>¿Cómo funciona?</h4><ol>
+          <li>Eliges <b>una boleta del 01 al 10</b> (al azar o manual) y la apartas con tu nombre y teléfono. Cuesta <b>${fmt(r.price)}</b>.</li>
+          <li>Tu número representa <b>toda su serie</b>. Ejemplo: el <b>01</b> gana con <b>01, 11, 21, 31, 41, 51, 61, 71, 81 y 91</b>.</li>
+          <li>${r.drawInfo||"Gana la boleta cuyo número coincida con el último dígito del resultado."}</li>
+        </ol></div>
+      </div>
+    </div>
+  </div></section>
+  <section class="section" style="padding-top:30px"><div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Elige tu suerte</span><h2 class="serif">Tablero · ${r.name}</h2>
+      <p>Toca una boleta disponible, o usa los botones de abajo.</p></div>
+    <div class="board" id="board"></div>
+    <div class="controls">
+      <button class="btn btn-gold btn-lg" id="autoBtn">🎲 Elegir número al azar</button>
+      <div class="manual"><input type="text" id="manualInput" placeholder="01" maxlength="2" inputmode="numeric">
+        <button class="btn btn-ghost" id="manualBtn">Apartar este</button></div>
+    </div>
+  </div></section>`;
+  if(activeRaffles.length>1)$$(".rf-tab").forEach(t=>t.addEventListener("click",()=>{current=activeRaffles.find(x=>x.id===t.dataset.raffle);selected=null;render();window.scrollTo({top:0,behavior:"smooth"});}));
+  renderBoard();
+  $("#autoBtn").addEventListener("click",autoPick);
+  $("#manualBtn").addEventListener("click",()=>{
+    let v=$("#manualInput").value.replace(/\D/g,"");if(!v){toast("Escribe un número 01–10");return;}
+    v=String(parseInt(v,10)).padStart(2,"0");
+    if(!seriesOf(v)||parseInt(v,10)<1||parseInt(v,10)>10){toast("Ese número no existe (01–10)");return;}
+    if(statusOf(current,v)!=="available"){toast("La boleta "+v+" ya está apartada");return;}
+    openReserve(v);});
+}
+function renderBoard(){
+  const r=current; if(!r)return; const board=$("#board"); if(!board)return;
+  board.innerHTML=(r.numbers||[]).slice().sort((a,b)=>a.number.localeCompare(b.number)).map(o=>{
+    const n=o.number,taken=o.status!=="available";
+    return `<div class="ticket ${taken?"taken":""} ${selected===n?"sel":""}" data-n="${n}">
+      ${selected===n?'<span class="pick">elegida</span>':""}
+      <div class="num">${n}</div><div class="series">${seriesOf(n).join(" · ")}</div>
+      <div class="state">${taken?"Apartado":"Disponible"}</div></div>`;}).join("");
+  $$("#board .ticket").forEach(t=>t.addEventListener("click",()=>{
+    const n=t.dataset.n;
+    if(statusOf(r,n)!=="available"){toast("La boleta "+n+" ya está apartada");return;}
+    openReserve(n);}));
+}
+function updateProgress(){
+  const r=current;if(!r)return;const nums=(r.numbers||[]).map(n=>n.number);
+  const taken=nums.filter(n=>statusOf(r,n)!=="available").length;
+  const bar=$(".progress > i"),txt=$(".progress-txt");
+  if(bar)bar.style.width=(nums.length?Math.round(taken/nums.length*100):0)+"%";
+  if(txt)txt.innerHTML=`<b>${taken}</b> de ${nums.length} boletas apartadas · ${nums.length-taken} disponibles`;
+}
+function autoPick(){
+  const r=current,avail=(r.numbers||[]).filter(n=>n.status==="available").map(n=>n.number);
+  if(!avail.length){toast("No quedan boletas en "+r.name+" 😮");return;}
+  const n=avail[Math.floor(Math.random()*avail.length)];
+  selected=n;renderBoard();
+  const el=$(`#board .ticket[data-n="${n}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});
+  setTimeout(()=>openReserve(n),350);
+}
+function openReserve(n){
+  selected=n;modalOpen=true;const r=current;
+  $("#rmodalBox").innerHTML=`
+    <div class="big-num">${n}</div>
+    <div class="sub">${r.name} · serie: ${seriesOf(n).join(", ")}</div>
+    <label>Tu nombre completo</label>
+    <input id="rfName" placeholder="Ej: María Gómez" autocomplete="name">
+    <label>Tu teléfono / WhatsApp</label>
+    <input id="rfPhone" placeholder="Ej: 300 123 4567" inputmode="tel" autocomplete="tel">
+    <label>Forma de pago</label>
+    <select id="rfPay"><option value="paid">Pago inmediato</option><option value="pending">Pendiente de pago</option></select>
+    <div class="acts">
+      <button class="btn btn-gold" id="rfConfirm" style="flex:1;justify-content:center">Apartar boleta ${n}</button>
+      <button class="btn btn-ghost" id="rfCancel">Cancelar</button>
+    </div>
+    <p style="font-size:.76rem;color:var(--muted-2);text-align:center;margin-top:12px">Al apartar, tu número queda bloqueado al instante y nos llega tu reserva para coordinar el pago de ${fmt(r.price)}.</p>`;
+  $("#rmodal").classList.add("open");document.body.classList.add("no-scroll");
+  $("#rfCancel").addEventListener("click",closeReserve);
+  $("#rfConfirm").addEventListener("click",()=>confirmReserve(n));
+  setTimeout(()=>$("#rfName").focus(),100);
+}
+function closeReserve(){$("#rmodal").classList.remove("open");document.body.classList.remove("no-scroll");modalOpen=false;}
+$("#rmodalBg").addEventListener("click",closeReserve);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReserve();});
+
+async function confirmReserve(n){
+  const r=current;
+  const name=$("#rfName").value.trim(),phone=$("#rfPhone").value.trim(),pay=$("#rfPay").value;
+  if(!name||phone.replace(/\D/g,"").length<7){toast("Completa nombre y teléfono válido");return;}
+  const btn=$("#rfConfirm");if(btn){btn.disabled=true;btn.textContent="Apartando...";}
+
+  let ok=false, errMsg="";
+  if(online){
+    try{
+      const res=await fetch(API+"/raffles/"+r.id+"/reserve",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({number:n,name,phone,payment:pay})});
+      const data=await res.json().catch(()=>({}));
+      if(res.ok){ok=true;}
+      else{errMsg=data.error||"No se pudo apartar.";}
+    }catch(e){errMsg="Sin conexión. Intenta de nuevo.";}
+  }else{
+    // modo respaldo (sin API): marca local y sigue
+    ok=true;
+  }
+
+  if(!ok){
+    if(btn){btn.disabled=false;btn.textContent="Apartar boleta "+n;}
+    toast("⚠️ "+errMsg);
+    await loadRaffles(); renderBoard(); updateProgress();
+    return;
+  }
+  await loadRaffles(); renderBoard(); updateProgress();
+  const payTxt=pay==="paid"?"Pago inmediato":"Pendiente de pago";
+  const msg=`🎟️ *NUEVA RESERVA DE RIFA*\n\n${r.name} — ${r.prizeName||""}\nBoleta: *${n}*  (serie: ${seriesOf(n).join(", ")})\nValor: ${fmt(r.price)}\nForma de pago: ${payTxt}\n\nNombre: ${name}\nTeléfono: ${phone}\n\nQuiero apartar esta boleta. ¿Cómo realizo el pago?`;
+  const wa=waLink(msg);
+  $("#rmodalBox").innerHTML=`<div class="rf-success">
+    <div class="check">✓</div>
+    <h3 class="serif" style="font-size:1.5rem">¡Boleta ${n} apartada!</h3>
+    <p style="color:var(--muted);font-size:.9rem;margin:8px 0 18px">${r.name} · a nombre de <b style="color:var(--text)">${name}</b> · ${payTxt}.<br>Tu número quedó bloqueado para todos. Envía tu reserva para coordinar el pago.</p>
+    <a class="btn btn-wa btn-lg" href="${wa}" target="_blank" rel="noopener" style="width:100%;justify-content:center">Enviar reserva por WhatsApp</a>
+    <button class="btn btn-ghost" id="rfDone" style="width:100%;justify-content:center;margin-top:10px">Listo</button></div>`;
+  $("#rfDone").addEventListener("click",()=>{closeReserve();selected=null;renderBoard();updateProgress();});
+  toast("<b>✓</b> Boleta "+n+" apartada");
+}
+
+// ---- tiempo real: refresca el tablero cada 8s (sin molestar si hay modal abierto) ----
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    if(modalOpen)return;
+    await loadRaffles();
+    if(!$("#board")){render();} else {renderBoard();updateProgress();}
+  },8000);
+}
+
+(async function init(){
+  await loadRaffles();
+  render();
+  startPolling();
+})();
+})();
+</script>
+</body>
+</html>

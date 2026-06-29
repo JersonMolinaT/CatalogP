@@ -1,0 +1,35 @@
+name: perfumes
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-perfumes}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-perfumes_pass}
+      POSTGRES_DB: ${DB_NAME:-perfumes}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-perfumes}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-perfumes}:${DB_PASSWORD:-perfumes_pass}@db:5432/${DB_NAME:-perfumes}
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-perfumes123}
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3001:3000"   # solo accesible localmente; nginx hace de proxy
+
+volumes:
+  pgdata:
