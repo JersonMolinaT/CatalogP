@@ -369,7 +369,14 @@
     $$("[data-nav]").forEach(a => a.addEventListener("click", () => mm.classList.remove("open")));
 
     // filters drawer (mobile)
-    $("#filtersToggle").addEventListener("click", () => $("#filtersPanel").classList.toggle("open"));
+    const fpanel = $("#filtersPanel");
+    const closeFilters = () => { fpanel.classList.remove("open"); document.body.classList.remove("no-scroll"); };
+    $("#filtersToggle").addEventListener("click", () => {
+      const open = fpanel.classList.toggle("open");
+      document.body.classList.toggle("no-scroll", open);
+    });
+    $("#filtersClose") && $("#filtersClose").addEventListener("click", closeFilters);
+    $("#filtersApply") && $("#filtersApply").addEventListener("click", closeFilters);
 
     $("#clearFilters").addEventListener("click", () => {
       state.filters = { brand: [], gender: [], family: [], tags: [] };

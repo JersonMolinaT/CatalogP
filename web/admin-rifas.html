@@ -350,14 +350,18 @@ function renderNumbers(){
       <div><input data-nm="${n}" value="${esc(d.name)}" placeholder="Nombre comprador"></div>
       <div class="col-ph"><input data-ph="${n}" value="${esc(d.phone)}" placeholder="Teléfono"></div>
       <div class="col-dt"><input type="date" data-dt="${n}" value="${(d.date||'').slice(0,10)}"></div>
-      <div><button class="btn btn-red btn-sm" data-free="${n}" title="Dejar disponible y borrar comprador">Liberar</button></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${(d.phone&&(d.payment==="partial"||d.payment==="paid"))?`<button class="btn btn-ghost btn-sm" data-rcpt="${n}" title="Enviar recibo por WhatsApp">🧾</button>`:""}<button class="btn btn-red btn-sm" data-free="${n}" title="Dejar disponible y borrar comprador">Liberar</button></div>
     </div>`;}).join("");
   const today=new Date().toISOString().slice(0,10);
   $$("[data-st]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.st,d=cur().numbers.find(x=>x.number===n);
     d.status=s.value;if(s.value!=="available"&&!d.date)d.date=today;markDirty("num",n);renderStats();}));
   $$("[data-pay]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.pay,d=cur().numbers.find(x=>x.number===n);
     d.payment=s.value;const w=document.querySelector('[data-abowrap="'+n+'"]');if(w)w.style.display=s.value==="partial"?"":"none";
-    if(s.value!=="partial")d.paidAmount=0;markDirty("num",n);renderStats();}));
+    if(s.value!=="partial")d.paidAmount=0;
+    // vínculo suave pago->estado: Pagado=>Vendida, Abono/Pendiente=>Apartada (editable a mano luego)
+    let ns=null;if(s.value==="paid")ns="sold";else if(s.value==="partial"||s.value==="pending")ns="reserved";
+    if(ns){d.status=ns;const st=document.querySelector('[data-st="'+n+'"]');if(st)st.value=ns;if(!d.date)d.date=today;}
+    markDirty("num",n);renderStats();}));
   $$("[data-ab]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.ab,d=cur().numbers.find(x=>x.number===n);
     d.paidAmount=+i.value||0;const f=document.querySelector('[data-falta="'+n+'"]');
     if(f)f.textContent="Falta "+fmt(Math.max(0,(+cur().price||0)-(d.paidAmount||0)));markDirty("num",n);renderStats();}));
@@ -365,6 +369,25 @@ function renderNumbers(){
   $$("[data-ph]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.ph;cur().numbers.find(x=>x.number===n).phone=i.value;markDirty("num",n);}));
   $$("[data-dt]").forEach(i=>i.addEventListener("change",()=>{const n=i.dataset.dt;cur().numbers.find(x=>x.number===n).date=i.value;markDirty("num",n);}));
   $$("[data-free]").forEach(b=>b.addEventListener("click",()=>liberar(b.dataset.free)));
+  $$("[data-rcpt]").forEach(b=>b.addEventListener("click",()=>sendReceipt(b.dataset.rcpt)));
+}
+// recibo de abono/pago por WhatsApp (mensaje cordial de comprobante para el cliente)
+function sendReceipt(n){
+  const r=cur();const d=r.numbers.find(x=>x.number===n);if(!d)return;
+  const tel=(d.phone||"").replace(/\D/g,"");
+  if(!tel){toast("Esta boleta no tiene teléfono");return;}
+  const price=+r.price||0, ab=+d.paidAmount||0, falta=Math.max(0,price-ab);
+  const nombre=(d.name||"").trim(), saludo=nombre?"Hola "+nombre:"Hola";
+  const premio=r.prizeName?" (premio: "+r.prizeName+")":"";
+  let msg;
+  if(d.payment==="paid"){
+    msg=`${saludo} 😊, te confirmamos el *pago completo* de tu boleta *${n}* en la ${r.name}${premio}. ¡Tu participación quedó asegurada! 🎟️✨ Mucha suerte en el sorteo. — Perfumes Originales`;
+  }else{
+    msg=`${saludo} 😊, ¡recibimos tu abono! 🎟️\nRifa: ${r.name}${premio}\nBoleta: *${n}*\nAbonado: *${fmt(ab)}*\nSaldo pendiente: *${fmt(falta)}*\n\nGracias por tu pago. Cuando completes el saldo te lo confirmamos. — Perfumes Originales`;
+  }
+  if(isDirty())toast("💡 Recuerda Guardar para que el recibo use el monto actualizado");
+  const wa="https://wa.me/"+(tel.length===10?"57"+tel:tel)+"?text="+encodeURIComponent(msg);
+  window.open(wa,"_blank","noopener");
 }
 async function liberar(n){
   const d=cur().numbers.find(x=>x.number===n);if(!d)return;

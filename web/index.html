@@ -127,8 +127,12 @@
 
     <div class="cat-layout">
       <aside class="filters" id="filtersPanel">
-        <div id="filterGroups"></div>
-        <button class="clear" id="clearFilters">Limpiar filtros</button>
+        <div class="filters-head"><span>Filtros</span><button class="filters-close" id="filtersClose" aria-label="Cerrar">✕</button></div>
+        <div class="filters-body">
+          <div id="filterGroups"></div>
+          <button class="clear" id="clearFilters">Limpiar filtros</button>
+        </div>
+        <button class="filters-apply" id="filtersApply">Ver resultados</button>
       </aside>
       <div>
         <div class="result-count" id="resultCount"></div>
