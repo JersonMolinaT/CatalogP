@@ -43,7 +43,8 @@ model RaffleNumber {
   raffleId   String
   number     String    // "01".."10"
   status     String    @default("available") // available | reserved | sold
-  payment    String    @default("")          // "" | paid | pending
+  payment    String    @default("")          // "" | paid | pending | partial(abono)
+  paidAmount Int       @default(0)           // monto abonado (COP); falta = price - paidAmount
   buyerName  String    @default("")
   buyerPhone String    @default("")
   reservedAt DateTime?

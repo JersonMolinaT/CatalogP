@@ -258,7 +258,12 @@ function openReserve(n){
     <label>Tu teléfono / WhatsApp</label>
     <input id="rfPhone" placeholder="Ej: 300 123 4567" inputmode="tel" autocomplete="tel">
     <label>Forma de pago</label>
-    <select id="rfPay"><option value="paid">Pago inmediato</option><option value="pending">Pendiente de pago</option></select>
+    <select id="rfPay"><option value="paid">Pago inmediato</option><option value="partial">Abono (pago parcial)</option><option value="pending">Pendiente de pago</option></select>
+    <div id="rfAboWrap" style="display:none;margin-top:10px">
+      <label>¿Cuánto vas a abonar ahora? (de ${fmt(r.price)})</label>
+      <input id="rfAbo" type="number" inputmode="numeric" min="0" step="1000" placeholder="Ej: 15000">
+      <p id="rfAboHint" style="font-size:.76rem;color:var(--muted-2);margin-top:6px"></p>
+    </div>
     <div class="acts">
       <button class="btn btn-gold" id="rfConfirm" style="flex:1;justify-content:center">Apartar boleta ${n}</button>
       <button class="btn btn-ghost" id="rfCancel">Cancelar</button>
@@ -267,6 +272,14 @@ function openReserve(n){
   $("#rmodal").classList.add("open");document.body.classList.add("no-scroll");
   $("#rfCancel").addEventListener("click",closeReserve);
   $("#rfConfirm").addEventListener("click",()=>confirmReserve(n));
+  const togAbo=()=>{const on=$("#rfPay").value==="partial";$("#rfAboWrap").style.display=on?"":"none";if(on)setTimeout(()=>$("#rfAbo").focus(),60);};
+  const hintAbo=()=>{const price=+current.price||0;let a=parseInt($("#rfAbo").value,10)||0;a=Math.max(0,Math.min(a,price));
+    const h=$("#rfAboHint");if(!h)return;
+    if(a<=0)h.textContent="Escribe un monto mayor a 0 (o elige Pendiente si aún no abonas).";
+    else if(a>=price)h.textContent="Ese monto cubre el total: se registrará como Pago inmediato.";
+    else h.textContent="Abonas "+fmt(a)+" · te quedará pendiente "+fmt(price-a)+".";};
+  $("#rfPay").addEventListener("change",togAbo);
+  $("#rfAbo")&&$("#rfAbo").addEventListener("input",hintAbo);
   setTimeout(()=>$("#rfName").focus(),100);
 }
 function closeReserve(){$("#rmodal").classList.remove("open");document.body.classList.remove("no-scroll");modalOpen=false;}
@@ -274,16 +287,23 @@ $("#rmodalBg").addEventListener("click",closeReserve);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReserve();});
 
 async function confirmReserve(n){
-  const r=current;
-  const name=$("#rfName").value.trim(),phone=$("#rfPhone").value.trim(),pay=$("#rfPay").value;
+  const r=current;const price=+r.price||0;
+  const name=$("#rfName").value.trim(),phone=$("#rfPhone").value.trim();
+  let pay=$("#rfPay").value, paidAmount=0;
   if(!name||phone.replace(/\D/g,"").length<7){toast("Completa nombre y teléfono válido");return;}
+  // abono: validar y normalizar (la fuente de verdad final es el backend)
+  if(pay==="partial"){
+    paidAmount=Math.max(0,Math.min(parseInt($("#rfAbo")&&$("#rfAbo").value,10)||0,price));
+    if(paidAmount<=0){toast("Escribe cuánto vas a abonar (o elige Pendiente)");if($("#rfAbo"))$("#rfAbo").focus();return;}
+    if(paidAmount>=price){pay="paid";paidAmount=0;}   // cubre el total -> pago inmediato
+  }
   const btn=$("#rfConfirm");if(btn){btn.disabled=true;btn.textContent="Apartando...";}
 
   let ok=false, errMsg="";
   if(online){
     try{
       const res=await fetch(API+"/raffles/"+r.id+"/reserve",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({number:n,name,phone,payment:pay})});
+        body:JSON.stringify({number:n,name,phone,payment:pay,paidAmount})});
       const data=await res.json().catch(()=>({}));
       if(res.ok){ok=true;}
       else{errMsg=data.error||"No se pudo apartar.";}
@@ -300,13 +320,15 @@ async function confirmReserve(n){
     return;
   }
   await loadRaffles(); renderBoard(); updateProgress();
-  const payTxt=pay==="paid"?"Pago inmediato":"Pendiente de pago";
-  const msg=`🎟️ *NUEVA RESERVA DE RIFA*\n\n${r.name} — ${r.prizeName||""}\nBoleta: *${n}*  (serie: ${seriesOf(n).join(", ")})\nValor: ${fmt(r.price)}\nForma de pago: ${payTxt}\n\nNombre: ${name}\nTeléfono: ${phone}\n\nQuiero apartar esta boleta. ¿Cómo realizo el pago?`;
+  const payTxt=pay==="paid"?"Pago inmediato":pay==="partial"?"Abono (pago parcial)":"Pendiente de pago";
+  const aboLine=pay==="partial"?`\nAbono ahora: ${fmt(paidAmount)}\nSaldo pendiente: ${fmt(price-paidAmount)}`:"";
+  const msg=`🎟️ *NUEVA RESERVA DE RIFA*\n\n${r.name} — ${r.prizeName||""}\nBoleta: *${n}*  (serie: ${seriesOf(n).join(", ")})\nValor: ${fmt(r.price)}\nForma de pago: ${payTxt}${aboLine}\n\nNombre: ${name}\nTeléfono: ${phone}\n\nQuiero apartar esta boleta. ¿Cómo realizo el pago?`;
   const wa=waLink(msg);
+  const aboHtml=pay==="partial"?`<br>Abono: <b style="color:var(--text)">${fmt(paidAmount)}</b> · falta <b style="color:var(--text)">${fmt(price-paidAmount)}</b>`:"";
   $("#rmodalBox").innerHTML=`<div class="rf-success">
     <div class="check">✓</div>
     <h3 class="serif" style="font-size:1.5rem">¡Boleta ${n} apartada!</h3>
-    <p style="color:var(--muted);font-size:.9rem;margin:8px 0 18px">${r.name} · a nombre de <b style="color:var(--text)">${name}</b> · ${payTxt}.<br>Tu número quedó bloqueado para todos. Envía tu reserva para coordinar el pago.</p>
+    <p style="color:var(--muted);font-size:.9rem;margin:8px 0 18px">${r.name} · a nombre de <b style="color:var(--text)">${name}</b> · ${payTxt}.${aboHtml}<br>Tu número quedó bloqueado para todos. Envía tu reserva para coordinar el pago.</p>
     <a class="btn btn-wa btn-lg" href="${wa}" target="_blank" rel="noopener" style="width:100%;justify-content:center">Enviar reserva por WhatsApp</a>
     <button class="btn btn-ghost" id="rfDone" style="width:100%;justify-content:center;margin-top:10px">Listo</button></div>`;
   $("#rfDone").addEventListener("click",()=>{closeReserve();selected=null;renderBoard();updateProgress();});

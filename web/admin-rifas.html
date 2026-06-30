@@ -61,6 +61,24 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
 .stat-mini div b{font-family:var(--serif);font-size:1.35rem;display:block}
 .stat-mini div span{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-2)}
 .exrow{display:flex;gap:10px;flex-wrap:wrap}
+.abo input{padding:6px 8px;font-size:.8rem}
+.abo .falta{font-size:.68rem;color:var(--red);margin-top:3px;font-weight:600}
+/* cobranza */
+.cob{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin:10px 0;background:var(--surface)}
+.cob .top{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+.cob .who{font-weight:700}.cob .meta{color:var(--muted-2);font-size:.78rem}
+.cob .due{margin-left:auto;color:var(--red);font-weight:700}
+.cob .msg{margin:9px 0;font-size:.84rem;color:var(--muted);background:var(--bg-3);border:1px solid var(--line);border-radius:9px;padding:9px 11px;white-space:pre-wrap}
+.cob .acts{display:flex;gap:8px;flex-wrap:wrap}
+/* guardar */
+#saveBtn.dirty{animation:pulseGold 1.4s infinite}
+@keyframes pulseGold{0%,100%{box-shadow:0 0 0 0 rgba(201,162,75,.55)}50%{box-shadow:0 0 0 7px rgba(201,162,75,0)}}
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:90;display:none;align-items:center;gap:14px;
+  padding:13px 20px;background:color-mix(in srgb,var(--bg-2) 94%,transparent);backdrop-filter:blur(14px);
+  border-top:1px solid var(--gold);box-shadow:0 -10px 30px -16px rgba(0,0,0,.6)}
+.savebar.show{display:flex}
+.savebar .msg{flex:1;font-size:.9rem;font-weight:600}.savebar .msg b{color:var(--gold)}
+.savebar .msg small{display:block;font-weight:500;color:var(--muted-2);font-size:.74rem}
 /* login */
 .login{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(80% 60% at 50% 0,rgba(201,162,75,.12),transparent),var(--bg)}
 .login .box{width:min(380px,100%);border:1px solid var(--line);border-radius:18px;background:var(--bg-2);padding:30px;box-shadow:var(--shadow)}
@@ -91,6 +109,7 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
   <div class="brand">Admin <b>Rifas</b><small>Perfumes Originales</small></div>
   <div class="sp"></div>
   <span class="live" id="live"><span class="dot"></span>En vivo</span>
+  <button class="btn btn-gold btn-sm" id="saveBtn">💾 Guardado</button>
   <a class="btn btn-ghost btn-sm" href="admin.html">← Productos</a>
   <button class="btn btn-ghost btn-sm" id="themeBtn">◐</button>
   <button class="btn btn-ghost btn-sm" id="logoutBtn">Salir</button>
@@ -101,7 +120,7 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
 
   <div class="card" id="cfgCard">
     <h2 id="cfgTitle">Configuración</h2>
-    <div class="desc">Los cambios se guardan al instante en la base de datos.</div>
+    <div class="desc">Edita lo que necesites y pulsa <b>💾 Guardar cambios</b> para registrarlo en la base de datos.</div>
     <div class="grid2">
       <div class="field"><label class="fl">Nombre de la rifa</label><input id="f_name" placeholder="Rifa 1"></div>
       <div class="field"><label class="fl">Valor por boleta (COP)</label><input id="f_price" type="number" step="1000"></div>
@@ -125,7 +144,7 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
 
   <div class="card" id="numCard">
     <h2>Boletas 01–10</h2>
-    <div class="desc">Estado y pago de cada boleta. Las reservas de los clientes aparecen aquí automáticamente.</div>
+    <div class="desc">Estado y pago de cada boleta. Las reservas de los clientes aparecen aquí automáticamente. Recuerda pulsar <b>💾 Guardar cambios</b> tras editar.</div>
     <div class="stat-mini" id="statMini"></div>
     <div style="margin-top:16px" class="head-num"><span>#</span><span>Estado</span><span>Pago</span><span>Comprador</span><span class="col-ph">Teléfono</span><span class="col-dt">Fecha</span><span>Acción</span></div>
     <div id="numbers"></div>
@@ -146,7 +165,23 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
       <span style="align-self:center;color:var(--muted-2);font-size:.82rem" id="buyerCount"></span>
     </div>
   </div>
+
+  <div class="card" id="cobCard">
+    <h2>Cobranza del saldo pendiente 💌</h2>
+    <div class="desc">Mensajes cordiales listos para enviar por WhatsApp a quienes tienen pago pendiente o abono incompleto, con su nombre, lo abonado y lo que falta.</div>
+    <div class="exrow" style="margin-bottom:6px">
+      <button class="btn btn-gold" id="cobBtn">💌 Generar mensajes de cobranza</button>
+      <span style="align-self:center;color:var(--muted-2);font-size:.82rem" id="cobSummary"></span>
+    </div>
+    <div id="cobList"></div>
+  </div>
 </div>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="msg"><b>Tienes cambios sin guardar.</b><small id="savebarDetail">Pulsa Guardar para registrarlos en la base de datos.</small></div>
+  <button class="btn btn-ghost btn-sm" id="discardBtn">Descartar</button>
+  <button class="btn btn-gold" id="saveBtn2">💾 Guardar cambios</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -163,6 +198,20 @@ const API="/api";
 const TKEY="po_admin_token";
 const $=(s)=>document.querySelector(s),$$=(s)=>Array.from(document.querySelectorAll(s));
 let token=null, DB={raffles:[]}, currentId=null, timers={};
+let dirtyMeta=false, dirtyNums=new Set();
+function isDirty(){return dirtyMeta||dirtyNums.size>0;}
+function markDirty(kind,n){if(kind==="meta")dirtyMeta=true;if(kind==="num")dirtyNums.add(n);updateSaveUI();}
+function clearDirty(){dirtyMeta=false;dirtyNums.clear();updateSaveUI();}
+function updateSaveUI(){
+  const b=$("#saveBtn"),bar=$("#savebar"),det=$("#savebarDetail");
+  if(isDirty()){
+    const parts=[];if(dirtyMeta)parts.push("configuración");if(dirtyNums.size)parts.push(dirtyNums.size+" boleta"+(dirtyNums.size>1?"s":""));
+    b.classList.add("dirty");b.textContent="💾 Guardar cambios";
+    bar.classList.add("show");if(det)det.textContent="Pendiente: "+parts.join(" + ")+". Pulsa Guardar para registrarlo en la base de datos.";
+  }else{
+    b.classList.remove("dirty");b.textContent="💾 Guardado";bar.classList.remove("show");
+  }
+}
 
 function toast(h){const t=$("#toast");t.innerHTML=h;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
 function fmt(v){try{return new Intl.NumberFormat(CFG.currencyLocale||"es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(v);}catch(e){return "$"+v;}}
@@ -219,13 +268,17 @@ $("#f_prize").innerHTML=PRODUCTS.map(p=>`<option value="${p.sku}" data-name="${e
 function renderTabs(){
   $("#tabs").innerHTML=DB.raffles.map(r=>`<div class="rtab ${r.id===currentId?"active":""}" data-id="${r.id}">${r.name}${r.active===false?" (oculta)":""}</div>`).join("")
     +`<button class="btn btn-ghost btn-sm" id="newBtn">+ Nueva rifa</button>`;
-  $$("#tabs .rtab").forEach(t=>t.addEventListener("click",()=>{currentId=t.dataset.id;renderTabs();loadCurrent();}));
+  $$("#tabs .rtab").forEach(t=>t.addEventListener("click",()=>{
+    if(t.dataset.id===currentId)return;
+    if(isDirty()&&!confirm("Tienes cambios sin guardar en esta rifa. ¿Cambiar de rifa y descartarlos?"))return;
+    clearDirty();currentId=t.dataset.id;renderTabs();loadCurrent();}));
   $("#newBtn").addEventListener("click",createRaffle);
 }
 function updatePrizeImg(){const sku=$("#f_prize").value;const p=PRODUCTS.find(x=>x.sku===sku);$("#prizeImg").src=p&&p.photos&&p.photos[0]?IMG+p.photos[0]:"";}
 
 function loadCurrent(){
   const r=cur();if(!r)return;
+  clearDirty();
   $("#cfgTitle").textContent="Configuración · "+r.name;
   $("#f_name").value=r.name||"";$("#f_price").value=r.price??30000;
   if(r.prizeSku)$("#f_prize").value=r.prizeSku;updatePrizeImg();
@@ -268,24 +321,32 @@ async function reopen(){
 
 const LABEL={available:"Disponible",reserved:"Apartada",sold:"Vendida"};
 function renderStats(){
-  const ns=cur().numbers||[];
+  const ns=cur().numbers||[];const price=+cur().price||0;
   const avail=ns.filter(n=>n.status==="available").length, res=ns.filter(n=>n.status==="reserved").length, sold=ns.filter(n=>n.status==="sold").length;
-  const paid=ns.filter(n=>n.payment==="paid").length*(+cur().price||0), pend=ns.filter(n=>n.payment==="pending").length*(+cur().price||0);
+  let recaudado=0, porCobrar=0;
+  ns.forEach(n=>{const ab=+n.paidAmount||0;
+    if(n.payment==="paid"){recaudado+=price;}
+    else if(n.payment==="partial"){recaudado+=Math.min(ab,price);porCobrar+=Math.max(0,price-ab);}
+    else if(n.payment==="pending"){porCobrar+=price;}});
   $("#statMini").innerHTML=`
     <div><b>${avail}</b><span>Disponibles</span></div>
     <div><b style="color:var(--gold)">${res}</b><span>Apartadas</span></div>
     <div><b style="color:var(--green)">${sold}</b><span>Vendidas</span></div>
-    <div><b>${fmt(paid)}</b><span>Pagado</span></div>
-    <div><b style="color:var(--red)">${fmt(pend)}</b><span>Pendiente</span></div>`;
+    <div><b style="color:var(--green)">${fmt(recaudado)}</b><span>Recaudado</span></div>
+    <div><b style="color:var(--red)">${fmt(porCobrar)}</b><span>Por cobrar</span></div>`;
 }
 function renderNumbers(){
-  const r=cur();
+  const r=cur();const price=+r.price||0;
   $("#numbers").innerHTML=(r.numbers||[]).map(d=>{
-    const n=d.number;
+    const n=d.number;const ab=+d.paidAmount||0;
     return `<div class="numrow">
       <div><div class="nn">${n}</div></div>
       <div><select data-st="${n}">${["available","reserved","sold"].map(s=>`<option value="${s}" ${d.status===s?"selected":""}>${LABEL[s]}</option>`).join("")}</select><div class="ser">${seriesOf(n).join(",")}</div></div>
-      <div><select data-pay="${n}"><option value="" ${!d.payment?"selected":""}>—</option><option value="paid" ${d.payment==="paid"?"selected":""}>Pagado</option><option value="pending" ${d.payment==="pending"?"selected":""}>Pendiente</option></select></div>
+      <div><select data-pay="${n}"><option value="" ${!d.payment?"selected":""}>—</option><option value="paid" ${d.payment==="paid"?"selected":""}>Pagado</option><option value="partial" ${d.payment==="partial"?"selected":""}>Abono</option><option value="pending" ${d.payment==="pending"?"selected":""}>Pendiente</option></select>
+        <div class="abo" data-abowrap="${n}" style="${d.payment==="partial"?"":"display:none"};margin-top:6px">
+          <input type="number" step="1000" min="0" data-ab="${n}" value="${ab}" placeholder="Abonado">
+          <div class="falta" data-falta="${n}">Falta ${fmt(Math.max(0,price-ab))}</div>
+        </div></div>
       <div><input data-nm="${n}" value="${esc(d.name)}" placeholder="Nombre comprador"></div>
       <div class="col-ph"><input data-ph="${n}" value="${esc(d.phone)}" placeholder="Teléfono"></div>
       <div class="col-dt"><input type="date" data-dt="${n}" value="${(d.date||'').slice(0,10)}"></div>
@@ -293,11 +354,16 @@ function renderNumbers(){
     </div>`;}).join("");
   const today=new Date().toISOString().slice(0,10);
   $$("[data-st]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.st,d=cur().numbers.find(x=>x.number===n);
-    d.status=s.value;if(s.value!=="available"&&!d.date)d.date=today;saveNumber(n,{status:s.value,date:d.date});renderStats();}));
-  $$("[data-pay]").forEach(s=>s.addEventListener("change",()=>{cur().numbers.find(x=>x.number===s.dataset.pay).payment=s.value;saveNumber(s.dataset.pay,{payment:s.value});renderStats();}));
-  $$("[data-nm]").forEach(i=>i.addEventListener("input",()=>{const d=cur().numbers.find(x=>x.number===i.dataset.nm);d.name=i.value;if(i.value&&!d.date)d.date=today;debounce("nm"+i.dataset.nm,()=>saveNumber(i.dataset.nm,{name:i.value,date:d.date}));renderBuyerCount();}));
-  $$("[data-ph]").forEach(i=>i.addEventListener("input",()=>{cur().numbers.find(x=>x.number===i.dataset.ph).phone=i.value;debounce("ph"+i.dataset.ph,()=>saveNumber(i.dataset.ph,{phone:i.value}));}));
-  $$("[data-dt]").forEach(i=>i.addEventListener("change",()=>{cur().numbers.find(x=>x.number===i.dataset.dt).date=i.value;saveNumber(i.dataset.dt,{date:i.value});}));
+    d.status=s.value;if(s.value!=="available"&&!d.date)d.date=today;markDirty("num",n);renderStats();}));
+  $$("[data-pay]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.pay,d=cur().numbers.find(x=>x.number===n);
+    d.payment=s.value;const w=document.querySelector('[data-abowrap="'+n+'"]');if(w)w.style.display=s.value==="partial"?"":"none";
+    if(s.value!=="partial")d.paidAmount=0;markDirty("num",n);renderStats();}));
+  $$("[data-ab]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.ab,d=cur().numbers.find(x=>x.number===n);
+    d.paidAmount=+i.value||0;const f=document.querySelector('[data-falta="'+n+'"]');
+    if(f)f.textContent="Falta "+fmt(Math.max(0,(+cur().price||0)-(d.paidAmount||0)));markDirty("num",n);renderStats();}));
+  $$("[data-nm]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.nm,d=cur().numbers.find(x=>x.number===n);d.name=i.value;if(i.value&&!d.date)d.date=today;markDirty("num",n);}));
+  $$("[data-ph]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.ph;cur().numbers.find(x=>x.number===n).phone=i.value;markDirty("num",n);}));
+  $$("[data-dt]").forEach(i=>i.addEventListener("change",()=>{const n=i.dataset.dt;cur().numbers.find(x=>x.number===n).date=i.value;markDirty("num",n);}));
   $$("[data-free]").forEach(b=>b.addEventListener("click",()=>liberar(b.dataset.free)));
 }
 async function liberar(n){
@@ -306,26 +372,54 @@ async function liberar(n){
   try{
     await api("/admin/raffles/"+currentId+"/numbers/"+n,{method:"PUT",body:JSON.stringify({status:"available",clear:true})});
     d.status="available";d.payment="";d.name="";d.phone="";d.date="";
+    dirtyNums.delete(n);updateSaveUI();
     renderNumbers();renderStats();renderBuyerCount();flash();toast("<b>✓</b> Boleta "+n+" liberada");
   }catch(e){toast("⚠️ "+e.message);}
 }
-async function saveNumber(n,patch){
-  try{await api("/admin/raffles/"+currentId+"/numbers/"+n,{method:"PUT",body:JSON.stringify(patch)});flash();}
-  catch(e){toast("⚠️ "+e.message);}
-}
 let flashT;function flash(){const l=$("#live");if(!l)return;l.style.color="var(--gold)";clearTimeout(flashT);flashT=setTimeout(()=>l.style.color="",500);}
 
-// config fields -> guardar
-function saveMeta(patch){debounce("meta",async()=>{try{const r=await api("/admin/raffles/"+currentId,{method:"PUT",body:JSON.stringify(patch)});
-  const idx=DB.raffles.findIndex(x=>x.id===currentId);if(idx>=0)DB.raffles[idx]=r;renderTabs();flash();}catch(e){toast("⚠️ "+e.message);}},500);}
-$("#f_name").addEventListener("input",()=>saveMeta({name:$("#f_name").value}));
-$("#f_price").addEventListener("input",()=>{saveMeta({price:+$("#f_price").value||0});renderStats();});
-$("#f_prize").addEventListener("change",()=>{const o=$("#f_prize").selectedOptions[0];updatePrizeImg();
-  saveMeta({prizeSku:$("#f_prize").value,prizeName:o?o.dataset.name:"",prizeImage:o?o.dataset.img:""});});
-$("#f_lottery").addEventListener("input",()=>saveMeta({lottery:$("#f_lottery").value}));
-$("#f_date").addEventListener("change",()=>saveMeta({drawDate:$("#f_date").value}));
-$("#f_info").addEventListener("input",()=>saveMeta({drawInfo:$("#f_info").value}));
-$("#f_active").addEventListener("change",()=>saveMeta({active:$("#f_active").value==="true"}));
+// ---- GUARDAR CAMBIOS (manual) ----
+// Recoge la configuración desde los campos y todas las boletas marcadas, y las guarda de una vez.
+async function saveAll(){
+  if(!isDirty()){toast("No hay cambios pendientes");return;}
+  const r=cur();if(!r){toast("No hay rifa seleccionada");return;}
+  const b=$("#saveBtn"),b2=$("#saveBtn2");
+  b.disabled=b2.disabled=true;b.textContent="Guardando…";
+  try{
+    if(dirtyMeta){
+      const o=$("#f_prize").selectedOptions[0];
+      const patch={name:$("#f_name").value,price:+$("#f_price").value||0,
+        prizeSku:$("#f_prize").value,prizeName:o?o.dataset.name:"",prizeImage:o?o.dataset.img:"",
+        lottery:$("#f_lottery").value,drawDate:$("#f_date").value,drawInfo:$("#f_info").value,
+        active:$("#f_active").value==="true"};
+      const rr=await api("/admin/raffles/"+currentId,{method:"PUT",body:JSON.stringify(patch)});
+      const idx=DB.raffles.findIndex(x=>x.id===currentId);if(idx>=0)DB.raffles[idx]=Object.assign({},DB.raffles[idx],rr);
+    }
+    for(const n of Array.from(dirtyNums)){
+      const d=cur().numbers.find(x=>x.number===n);if(!d)continue;
+      await api("/admin/raffles/"+currentId+"/numbers/"+n,{method:"PUT",
+        body:JSON.stringify({status:d.status,payment:d.payment,paidAmount:d.paidAmount||0,name:d.name,phone:d.phone,date:d.date})});
+    }
+    clearDirty();renderTabs();renderStats();renderBuyerCount();flash();toast("<b>✓</b> Cambios guardados");
+  }catch(e){toast("⚠️ No se pudo guardar: "+e.message);}
+  finally{b.disabled=b2.disabled=false;updateSaveUI();}
+}
+$("#saveBtn").addEventListener("click",saveAll);
+$("#saveBtn2").addEventListener("click",saveAll);
+$("#discardBtn").addEventListener("click",()=>{
+  if(!confirm("¿Descartar los cambios sin guardar y recargar los datos de la base de datos?"))return;
+  clearDirty();reload();toast("Cambios descartados");
+});
+// Ctrl/Cmd+S para guardar
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveAll();}});
+// config fields -> marcar cambio (no guarda hasta pulsar Guardar)
+$("#f_name").addEventListener("input",()=>{const r=cur();if(r)r.name=$("#f_name").value;markDirty("meta");renderTabs();});
+$("#f_price").addEventListener("input",()=>{const r=cur();if(r)r.price=+$("#f_price").value||0;markDirty("meta");renderStats();});
+$("#f_prize").addEventListener("change",()=>{updatePrizeImg();markDirty("meta");});
+$("#f_lottery").addEventListener("input",()=>markDirty("meta"));
+$("#f_date").addEventListener("change",()=>markDirty("meta"));
+$("#f_info").addEventListener("input",()=>markDirty("meta"));
+$("#f_active").addEventListener("change",()=>markDirty("meta"));
 
 async function createRaffle(){
   try{
@@ -352,10 +446,11 @@ async function getRows(){const d=await api("/admin/reservations");return d.rows|
 function renderBuyerCount(){getRows().then(r=>{const el=$("#buyerCount");if(el)el.textContent=r.length?r.length+" registro(s)":"Sin compradores aún";}).catch(()=>{});}
 $("#exCsv").addEventListener("click",async()=>{
   const rows=await getRows();if(!rows.length){toast("No hay compradores para exportar");return;}
-  const head=["Rifa","Premio","Numero","Comprador","Telefono","Estado","Pago","Fecha","Valor"];
+  const head=["Rifa","Premio","Numero","Comprador","Telefono","Estado","Pago","Abonado","Falta","Fecha","Valor"];
   const e2=v=>{v=(v==null?"":String(v));return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const LAB={available:"Disponible",reserved:"Apartada",sold:"Vendida"};
-  const lines=[head.join(";")].concat(rows.map(r=>[r.rifa,r.premio,r.numero,r.comprador,r.telefono,LAB[r.estado]||r.estado,r.pago==="paid"?"Pagado":r.pago==="pending"?"Pendiente":"—",r.fecha,r.valor].map(e2).join(";")));
+  const PL=p=>p==="paid"?"Pagado":p==="pending"?"Pendiente":p==="partial"?"Abono":"—";
+  const lines=[head.join(";")].concat(rows.map(r=>[r.rifa,r.premio,r.numero,r.comprador,r.telefono,LAB[r.estado]||r.estado,PL(r.pago),r.abonado||0,r.falta!=null?r.falta:"",r.fecha,r.valor].map(e2).join(";")));
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="compradores-rifas.csv";a.click();
   toast("<b>⤓</b> Excel exportado");
@@ -363,19 +458,53 @@ $("#exCsv").addEventListener("click",async()=>{
 $("#exPdf").addEventListener("click",async()=>{
   const rows=await getRows();if(!rows.length){toast("No hay compradores para exportar");return;}
   const LAB={available:"Disponible",reserved:"Apartada",sold:"Vendida"};
-  const totPaid=rows.filter(r=>r.pago==="paid").reduce((s,r)=>s+(+r.valor||0),0);
-  const totPend=rows.filter(r=>r.pago==="pending").reduce((s,r)=>s+(+r.valor||0),0);
-  const trs=rows.map(r=>`<tr><td>${r.rifa}</td><td>${r.premio}</td><td style="text-align:center;font-weight:700">${r.numero}</td><td>${r.comprador}</td><td>${r.telefono}</td><td>${LAB[r.estado]||r.estado}</td><td>${r.pago==="paid"?"Pagado":r.pago==="pending"?"Pendiente":"—"}</td><td>${r.fecha}</td><td style="text-align:right">${fmt(r.valor)}</td></tr>`).join("");
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Compradores de Rifas</title><style>body{font-family:Arial,sans-serif;color:#111;padding:28px}h1{font-size:20px;margin:0 0 2px}.sub{color:#666;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:7px 9px;text-align:left}th{background:#1a1407;color:#e3c98a;text-transform:uppercase;font-size:10px}tr:nth-child(even) td{background:#faf8f3}.tot{margin-top:16px;font-size:13px}.tot b{color:#a07e34}@media print{.noprint{display:none}}</style></head><body><h1>Perfumes Originales — Compradores de Rifas</h1><div class="sub">Generado: ${new Date().toLocaleString("es-CO")} · ${rows.length} registros</div><table><thead><tr><th>Rifa</th><th>Premio</th><th>N°</th><th>Comprador</th><th>Teléfono</th><th>Estado</th><th>Pago</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>${trs}</tbody></table><div class="tot">Total pagado: <b>${fmt(totPaid)}</b> &nbsp;·&nbsp; Pendiente: <b>${fmt(totPend)}</b></div><button class="noprint" onclick="window.print()" style="margin-top:20px;padding:10px 18px;background:#c9a24b;border:none;border-radius:8px;font-weight:700;cursor:pointer">Imprimir / Guardar PDF</button><script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
+  const PL=p=>p==="paid"?"Pagado":p==="pending"?"Pendiente":p==="partial"?"Abono":"—";
+  const totRec=rows.reduce((s,r)=>s+(r.pago==="paid"?(+r.valor||0):r.pago==="partial"?(+r.abonado||0):0),0);
+  const totPend=rows.reduce((s,r)=>s+(r.pago==="pending"||r.pago==="partial"?(+r.falta||0):0),0);
+  const trs=rows.map(r=>`<tr><td>${r.rifa}</td><td>${r.premio}</td><td style="text-align:center;font-weight:700">${r.numero}</td><td>${r.comprador}</td><td>${r.telefono}</td><td>${LAB[r.estado]||r.estado}</td><td>${PL(r.pago)}</td><td style="text-align:right">${fmt(r.abonado||0)}</td><td style="text-align:right">${fmt(r.falta||0)}</td><td>${r.fecha}</td><td style="text-align:right">${fmt(r.valor)}</td></tr>`).join("");
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Compradores de Rifas</title><style>body{font-family:Arial,sans-serif;color:#111;padding:28px}h1{font-size:20px;margin:0 0 2px}.sub{color:#666;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:7px 9px;text-align:left}th{background:#1a1407;color:#e3c98a;text-transform:uppercase;font-size:10px}tr:nth-child(even) td{background:#faf8f3}.tot{margin-top:16px;font-size:13px}.tot b{color:#a07e34}@media print{.noprint{display:none}}</style></head><body><h1>Perfumes Originales — Compradores de Rifas</h1><div class="sub">Generado: ${new Date().toLocaleString("es-CO")} · ${rows.length} registros</div><table><thead><tr><th>Rifa</th><th>Premio</th><th>N°</th><th>Comprador</th><th>Teléfono</th><th>Estado</th><th>Pago</th><th>Abonado</th><th>Falta</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>${trs}</tbody></table><div class="tot">Recaudado: <b>${fmt(totRec)}</b> &nbsp;·&nbsp; Por cobrar: <b>${fmt(totPend)}</b></div><button class="noprint" onclick="window.print()" style="margin-top:20px;padding:10px 18px;background:#c9a24b;border:none;border-radius:8px;font-weight:700;cursor:pointer">Imprimir / Guardar PDF</button><script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
   const w=window.open("","_blank");if(!w){toast("Permite las ventanas emergentes");return;}w.document.open();w.document.write(html);w.document.close();
 });
 
+// ---- cobranza: genera mensajes cordiales del saldo pendiente ----
+$("#cobBtn").addEventListener("click",async()=>{
+  const list=$("#cobList"),sum=$("#cobSummary");
+  list.innerHTML="";sum.textContent="Generando…";
+  try{
+    const d=await api("/admin/collections");
+    const rows=d.rows||[];
+    if(!rows.length){sum.textContent="";list.innerHTML='<div class="help">🎉 ¡No hay saldos pendientes! Todos están al día.</div>';return;}
+    sum.textContent=rows.length+" por cobrar · falta "+fmt(d.totalFalta||0);
+    list.innerHTML=rows.map((r,i)=>`<div class="cob">
+      <div class="top"><span class="who">${esc(r.comprador||"(sin nombre)")}</span>
+        <span class="meta">${r.rifa} · boleta ${r.numero} · ${esc(r.telefono||"sin teléfono")}${r.abonado?" · abonado "+fmt(r.abonado):""}</span>
+        <span class="due">Falta ${fmt(r.falta)}</span></div>
+      <div class="msg" id="cobMsg${i}">${esc(r.mensaje)}</div>
+      <div class="acts">
+        ${r.wa?`<a class="btn btn-green btn-sm" href="${r.wa}" target="_blank" rel="noopener">💬 Enviar por WhatsApp</a>`:`<span class="meta">Sin teléfono para WhatsApp</span>`}
+        <button class="btn btn-ghost btn-sm" data-copy="${i}">⧉ Copiar mensaje</button>
+      </div></div>`).join("");
+    window._cobRows=rows;
+    $$("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+      const t=window._cobRows[+b.dataset.copy].mensaje;
+      navigator.clipboard.writeText(t).then(()=>toast("<b>⧉</b> Mensaje copiado")).catch(()=>{
+        const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+        try{document.execCommand("copy");toast("<b>⧉</b> Mensaje copiado");}catch(e){toast("No se pudo copiar");}ta.remove();});
+    }));
+  }catch(e){sum.textContent="";toast("⚠️ "+e.message);}
+});
+
 // ---- tiempo real: refresca cada 8s para ver reservas nuevas ----
+// No refresca si hay cambios sin guardar (para no pisar lo que estás editando).
 setInterval(async()=>{
+  if(isDirty())return;
   if(document.activeElement&&["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
   if($("#main").classList.contains("hidden"))return;
   try{const d=await api("/admin/raffles");DB=d;if(cur()){renderNumbers();renderStats();renderBuyerCount();}}catch(e){}
 },8000);
+
+// Aviso antes de cerrar/recargar la pestaña con cambios pendientes
+window.addEventListener("beforeunload",e=>{if(isDirty()){e.preventDefault();e.returnValue="";}});
 
 // theme
 $("#themeBtn").addEventListener("click",()=>{const t=document.documentElement.getAttribute("data-theme")==="light"?"dark":"light";document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("po_theme",t);}catch(e){}});
