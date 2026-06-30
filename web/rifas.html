@@ -43,11 +43,12 @@
 .ticket .num{font-family:var(--serif);font-size:2.1rem;font-weight:800;line-height:1}
 .ticket .series{font-size:.66rem;color:var(--muted-2);margin-top:8px;line-height:1.4;word-spacing:1px}
 .ticket .state{margin-top:10px;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
-.ticket.taken{cursor:not-allowed;opacity:.85;border-color:var(--line)}
-.ticket.taken:hover{transform:none;box-shadow:none;border-color:var(--line)}
-.ticket.taken .num{color:var(--muted-2)}
-.ticket.taken .state{color:var(--red)}
-.ticket.taken::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 9px,rgba(224,86,74,.07) 9px,rgba(224,86,74,.07) 18px)}
+.ticket.taken{cursor:not-allowed;background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep));border-color:transparent}
+.ticket.taken:hover{transform:none;box-shadow:none;border-color:transparent}
+.ticket.taken .num{color:#1a1407}
+.ticket.taken .series{color:rgba(26,20,7,.62)}
+.ticket.taken .state{color:#1a1407;opacity:.85}
+.ticket.taken::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 9px,rgba(26,20,7,.07) 9px,rgba(26,20,7,.07) 18px)}
 .ticket.sel{border-color:var(--gold);box-shadow:var(--shadow-gold)}
 .ticket .pick{position:absolute;top:8px;right:10px;font-size:.62rem;color:var(--gold)}
 .controls{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;align-items:center}
@@ -67,7 +68,18 @@
 .rf-success{text-align:center}
 .rf-success .check{width:64px;height:64px;border-radius:50%;background:var(--green);display:grid;place-items:center;margin:0 auto 14px;color:#072b14;font-size:2rem}
 .rf-closed{text-align:center;padding:90px 20px;color:var(--muted)}
-@media(max-width:760px){.rf-grid{grid-template-columns:1fr;gap:24px}.board{grid-template-columns:repeat(2,1fr)}}
+.rf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 4px}
+.rf-stat{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:14px 16px;display:flex;align-items:center;gap:13px}
+.ring{position:relative;width:70px;height:70px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .track{stroke:var(--surface-2)}
+.ring .prog{stroke:url(#rgGold);stroke-linecap:round;transition:stroke-dashoffset 1s var(--ease)}
+.ring .rc{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--serif);font-weight:800;font-size:1.02rem;color:var(--gold)}
+.rf-stat .meta .big{font-family:var(--serif);font-size:1.85rem;font-weight:800;line-height:1}
+.rf-stat .meta .big.sm{font-size:1.3rem}
+.rf-stat .meta .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);margin-top:4px}
+.rf-stat .ico{width:46px;height:46px;flex:none;border-radius:13px;display:grid;place-items:center;font-size:1.5rem;background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep))}
+@media(max-width:760px){.rf-grid{grid-template-columns:1fr;gap:24px}.board{grid-template-columns:repeat(2,1fr)}.rf-stats{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -170,6 +182,16 @@ function render(){
   const taken=nums.filter(n=>statusOf(r,n)!=="available").length;
   const pct=nums.length?Math.round(taken/nums.length*100):0;
   const drawDate=r.drawDate?new Date(r.drawDate+"T00:00:00").toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"}):"Por confirmar";
+  const free=nums.length-taken;
+  const RC=188.5, ringOff=(RC*(1-pct/100)).toFixed(1);
+  let cdNum="—",cdLbl="fecha por confirmar";
+  if(r.finished&&r.winningNumber){cdNum="🏆";cdLbl="boleta ganadora "+r.winningNumber;}
+  else if(r.drawDate){const _t=new Date();_t.setHours(0,0,0,0);const _dd=new Date(r.drawDate+"T00:00:00");const _days=Math.round((_dd-_t)/86400000);
+    if(_days>1){cdNum=_days;cdLbl="días para el sorteo";}
+    else if(_days===1){cdNum="1";cdLbl="¡mañana es el sorteo!";}
+    else if(_days===0){cdNum="¡Hoy!";cdLbl="es el gran sorteo";}
+    else{cdNum="✓";cdLbl="sorteo realizado";}}
+  const cdSm=(typeof cdNum==="string"&&cdNum.length>2)?" sm":"";
   const tabs=activeRaffles.length>1?`<div class="rf-tabs">${activeRaffles.map(rr=>{
     const av=(rr.numbers||[]).filter(n=>n.status==="available").length;
     return `<div class="rf-tab ${rr.id===r.id?"active":""}" data-raffle="${rr.id}">🎟️ ${rr.name} <span class="mini">· ${av} libres</span></div>`;}).join("")}</div>`:"";
@@ -190,8 +212,23 @@ function render(){
           <span class="chip">🗓️ Sorteo: <b>${drawDate}</b></span>
           <span class="chip">🎰 <b>${r.lottery||"Lotería"}</b></span>
         </div>
-        <div class="progress"><i style="width:${pct}%"></i></div>
-        <div class="progress-txt"><b>${taken}</b> de ${nums.length} boletas apartadas · ${nums.length-taken} disponibles</div>
+        <div class="rf-stats">
+          <div class="rf-stat">
+            <div class="ring"><svg viewBox="0 0 70 70" aria-hidden="true"><defs><linearGradient id="rgGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3c98a"/><stop offset="1" stop-color="#a07e34"/></linearGradient></defs>
+              <circle class="track" cx="35" cy="35" r="30" fill="none" stroke-width="8"/>
+              <circle class="prog" id="rfRing" cx="35" cy="35" r="30" fill="none" stroke-width="8" stroke-dasharray="${RC}" stroke-dashoffset="${ringOff}"/></svg>
+              <div class="rc" id="rfRingPct">${pct}%</div></div>
+            <div class="meta"><div class="big sm">Avance</div><div class="lbl"><span id="rfTaken">${taken}</span> de ${nums.length} boletas</div></div>
+          </div>
+          <div class="rf-stat">
+            <div class="ico">🎟️</div>
+            <div class="meta"><div class="big" id="rfFree">${free}</div><div class="lbl">boletas libres</div></div>
+          </div>
+          <div class="rf-stat">
+            <div class="ico">⏳</div>
+            <div class="meta"><div class="big${cdSm}">${cdNum}</div><div class="lbl">${cdLbl}</div></div>
+          </div>
+        </div>
         <div class="how"><h4>¿Cómo funciona?</h4><ol>
           <li>Eliges <b>una boleta del 01 al 10</b> (al azar o manual) y la apartas con tu nombre y teléfono. Cuesta <b>${fmt(r.price)}</b>.</li>
           <li>Tu número representa <b>toda su serie</b>. Ejemplo: el <b>01</b> gana con <b>01, 11, 21, 31, 41, 51, 61, 71, 81 y 91</b>.</li>
@@ -236,9 +273,12 @@ function renderBoard(){
 function updateProgress(){
   const r=current;if(!r)return;const nums=(r.numbers||[]).map(n=>n.number);
   const taken=nums.filter(n=>statusOf(r,n)!=="available").length;
-  const bar=$(".progress > i"),txt=$(".progress-txt");
-  if(bar)bar.style.width=(nums.length?Math.round(taken/nums.length*100):0)+"%";
-  if(txt)txt.innerHTML=`<b>${taken}</b> de ${nums.length} boletas apartadas · ${nums.length-taken} disponibles`;
+  const pct=nums.length?Math.round(taken/nums.length*100):0;
+  const ring=$("#rfRing"),rp=$("#rfRingPct"),fr=$("#rfFree"),tk=$("#rfTaken");
+  if(ring)ring.setAttribute("stroke-dashoffset",(188.5*(1-pct/100)).toFixed(1));
+  if(rp)rp.textContent=pct+"%";
+  if(fr)fr.textContent=(nums.length-taken);
+  if(tk)tk.textContent=taken;
 }
 function autoPick(){
   const r=current,avail=(r.numbers||[]).filter(n=>n.status==="available").map(n=>n.number);
