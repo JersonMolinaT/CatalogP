@@ -38,16 +38,33 @@ model Raffle {
 
 // Cada boleta 01..10 de una rifa
 model RaffleNumber {
-  id         Int       @id @default(autoincrement())
-  raffle     Raffle    @relation(fields: [raffleId], references: [id], onDelete: Cascade)
-  raffleId   String
-  number     String    // "01".."10"
-  status     String    @default("available") // available | reserved | sold
-  payment    String    @default("")          // "" | paid | pending | partial(abono)
-  paidAmount Int       @default(0)           // monto abonado (COP); falta = price - paidAmount
-  buyerName  String    @default("")
-  buyerPhone String    @default("")
-  reservedAt DateTime?
+  id          Int       @id @default(autoincrement())
+  raffle      Raffle    @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  raffleId    String
+  number      String    // "01".."10"
+  status      String    @default("available") // available | reserved | sold
+  payment     String    @default("")          // "" | paid | pending | partial(abono)
+  payMethod   String    @default("")          // "" | efectivo | nequi | banco (forma de pago)
+  paidAmount  Int       @default(0)           // monto abonado (COP); falta = price - paidAmount
+  buyerName   String    @default("")
+  buyerPhone  String    @default("")
+  reservedAt  DateTime?
+  proofImage  String    @default("")          // comprobante de pago (dataURL jpeg comprimido)
+  proofStatus String    @default("")          // "" | pending | approved | rejected
+  proofAt     DateTime?                       // cuándo subió el comprobante
+  proofToken  String    @default("")          // token secreto del comprador (devuelto al reservar)
+  payments    Payment[]
 
   @@unique([raffleId, number]) // evita duplicar el número dentro de la rifa
+}
+
+// Historial de abonos/pagos de una boleta (cuotas)
+model Payment {
+  id        Int          @id @default(autoincrement())
+  num       RaffleNumber @relation(fields: [numId], references: [id], onDelete: Cascade)
+  numId     Int
+  amount    Int          // monto del abono (COP)
+  method    String       @default("") // efectivo | nequi | banco | ""
+  note      String       @default("")
+  createdAt DateTime     @default(now())
 }

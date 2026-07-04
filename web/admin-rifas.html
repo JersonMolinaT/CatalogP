@@ -225,7 +225,22 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
     </div>
     <div id="cobList"></div>
   </div>
+
+  <div class="card" id="sumCard">
+    <h2>Resumen del día 📋</h2>
+    <div class="desc">Reservas y pagos de hoy, deudores, boletas libres y comprobantes por revisar. Genera el texto y cópialo donde quieras (WhatsApp, notas, etc.).</div>
+    <div class="exrow" style="margin-bottom:6px">
+      <button class="btn btn-gold" id="sumBtn">📋 Generar resumen de hoy</button>
+      <button class="btn btn-ghost" id="sumCopy" style="display:none">⧉ Copiar resumen</button>
+    </div>
+    <textarea id="sumText" readonly style="display:none;width:100%;min-height:260px;background:var(--surface);color:var(--text);border:1px solid var(--border,#333);border-radius:10px;padding:12px;font-size:.85rem;line-height:1.5;font-family:inherit"></textarea>
+  </div>
 </div>
+</div>
+
+<!-- modal genérico (comprobantes / historial de abonos) -->
+<div id="gmodal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeGModal()">
+  <div id="gmodalBox" style="background:var(--bg);border:1px solid var(--gold-deep);border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:20px"></div>
 </div>
 
 <div class="savebar" id="savebar">
@@ -371,6 +386,8 @@ async function reopen(){
 }
 
 const LABEL={available:"Disponible",reserved:"Apartada",sold:"Vendida"};
+const METLBL={efectivo:"Efectivo",nequi:"Nequi",daviplata:"Daviplata",banco:"Banco"};
+const ML=m=>METLBL[m]||"—";
 function renderStats(){
   const ns=cur().numbers||[];const price=+cur().price||0;
   const avail=ns.filter(n=>n.status==="available").length, res=ns.filter(n=>n.status==="reserved").length, sold=ns.filter(n=>n.status==="sold").length;
@@ -455,6 +472,7 @@ function renderNumbers(){
       <div><div class="nn">${n}</div></div>
       <div><select data-st="${n}">${["available","reserved","sold"].map(s=>`<option value="${s}" ${d.status===s?"selected":""}>${LABEL[s]}</option>`).join("")}</select><div class="ser">${seriesOf(n).join(",")}</div></div>
       <div><select data-pay="${n}"><option value="" ${!d.payment?"selected":""}>—</option><option value="paid" ${d.payment==="paid"?"selected":""}>Pagado</option><option value="partial" ${d.payment==="partial"?"selected":""}>Abono</option><option value="pending" ${d.payment==="pending"?"selected":""}>Pendiente</option></select>
+        <select data-met="${n}" style="margin-top:6px" title="Forma de pago"><option value="" ${!d.method?"selected":""}>Forma: —</option><option value="efectivo" ${d.method==="efectivo"?"selected":""}>💵 Efectivo</option><option value="nequi" ${d.method==="nequi"?"selected":""}>📱 Nequi</option><option value="daviplata" ${d.method==="daviplata"?"selected":""}>📲 Daviplata</option><option value="banco" ${d.method==="banco"?"selected":""}>🏦 Banco</option></select>
         <div class="abo" data-abowrap="${n}" style="${d.payment==="partial"?"":"display:none"};margin-top:6px">
           <input type="number" step="1000" min="0" data-ab="${n}" value="${ab}" placeholder="Abonado">
           <div class="falta" data-falta="${n}">Falta ${fmt(Math.max(0,price-ab))}</div>
@@ -462,7 +480,7 @@ function renderNumbers(){
       <div><input data-nm="${n}" value="${esc(d.name)}" placeholder="Nombre comprador"></div>
       <div class="col-ph"><input data-ph="${n}" value="${esc(d.phone)}" placeholder="Teléfono"></div>
       <div class="col-dt"><input type="date" data-dt="${n}" value="${(d.date||'').slice(0,10)}"></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${(d.phone&&(d.payment==="partial"||d.payment==="paid"))?`<button class="btn btn-ghost btn-sm" data-rcpt="${n}" title="Enviar recibo por WhatsApp">🧾</button>`:""}<button class="btn btn-red btn-sm" data-free="${n}" title="Dejar disponible y borrar comprador">Liberar</button></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${d.proofStatus==="pending"?`<button class="btn btn-gold btn-sm" data-proof="${n}" title="Ver comprobante subido por el cliente">📸 Por confirmar</button>`:d.proofStatus==="approved"?`<button class="btn btn-ghost btn-sm" data-proof="${n}" title="Comprobante aprobado">📸✓</button>`:d.proofStatus==="rejected"?`<button class="btn btn-ghost btn-sm" data-proof="${n}" title="Comprobante rechazado">📸✗</button>`:""}${(d.paidAmount>0||d.payment)?`<button class="btn btn-ghost btn-sm" data-hist="${n}" title="Historial de abonos (cuotas)">📜</button>`:""}${(d.phone&&(d.payment==="partial"||d.payment==="paid"))?`<button class="btn btn-ghost btn-sm" data-rcpt="${n}" title="Enviar recibo por WhatsApp">🧾</button>`:""}<button class="btn btn-red btn-sm" data-free="${n}" title="Dejar disponible y borrar comprador">Liberar</button></div>
     </div>`;}).join("");
   const today=new Date().toISOString().slice(0,10);
   $$("[data-st]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.st,d=cur().numbers.find(x=>x.number===n);
@@ -474,6 +492,8 @@ function renderNumbers(){
     let ns=null;if(s.value==="paid")ns="sold";else if(s.value==="partial"||s.value==="pending")ns="reserved";
     if(ns){d.status=ns;const st=document.querySelector('[data-st="'+n+'"]');if(st)st.value=ns;if(!d.date)d.date=today;}
     markDirty("num",n);renderStats();}));
+  $$("[data-met]").forEach(s=>s.addEventListener("change",()=>{const n=s.dataset.met,d=cur().numbers.find(x=>x.number===n);
+    d.method=s.value;markDirty("num",n);}));
   $$("[data-ab]").forEach(i=>i.addEventListener("input",()=>{const n=i.dataset.ab,d=cur().numbers.find(x=>x.number===n);
     d.paidAmount=+i.value||0;const f=document.querySelector('[data-falta="'+n+'"]');
     if(f)f.textContent="Falta "+fmt(Math.max(0,(+cur().price||0)-(d.paidAmount||0)));markDirty("num",n);renderStats();}));
@@ -482,20 +502,93 @@ function renderNumbers(){
   $$("[data-dt]").forEach(i=>i.addEventListener("change",()=>{const n=i.dataset.dt;cur().numbers.find(x=>x.number===n).date=i.value;markDirty("num",n);}));
   $$("[data-free]").forEach(b=>b.addEventListener("click",()=>liberar(b.dataset.free)));
   $$("[data-rcpt]").forEach(b=>b.addEventListener("click",()=>sendReceipt(b.dataset.rcpt)));
+  $$("[data-proof]").forEach(b=>b.addEventListener("click",()=>openProofAdmin(b.dataset.proof)));
+  $$("[data-hist]").forEach(b=>b.addEventListener("click",()=>openHistory(b.dataset.hist)));
+}
+// ---- modal genérico ----
+function showGModal(html){$("#gmodalBox").innerHTML=html;$("#gmodal").style.display="flex";}
+function closeGModal(){$("#gmodal").style.display="none";$("#gmodalBox").innerHTML="";}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGModal();});
+
+// ---- COMPROBANTES: ver imagen y aprobar/rechazar con 1 clic ----
+async function openProofAdmin(n){
+  const r=cur();const d=r.numbers.find(x=>x.number===n);if(!d)return;
+  showGModal('<div style="text-align:center;color:var(--muted)">Cargando comprobante…</div>');
+  try{
+    const p=await api("/admin/raffles/"+currentId+"/numbers/"+n+"/proof");
+    const price=+r.price||0,ab=+d.paidAmount||0,falta=Math.max(0,price-ab);
+    const st=p.status==="pending"?"🟡 Por confirmar":p.status==="approved"?"🟢 Aprobado":"🔴 Rechazado";
+    showGModal(`
+      <h3 style="margin:0 0 4px">📸 Comprobante — Boleta ${n}</h3>
+      <div style="color:var(--muted-2);font-size:.82rem;margin-bottom:10px">${esc(d.name||"(sin nombre)")} · ${esc(d.phone||"sin tel.")} · ${st}${p.at?" · "+p.at.slice(0,16).replace("T"," "):""}<br>Valor ${fmt(price)} · abonado ${fmt(ab)} · falta ${fmt(falta)}</div>
+      <img src="${p.image}" alt="comprobante" style="width:100%;border-radius:10px;border:1px solid var(--gold-deep)">
+      ${p.status==="pending"?`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-green" id="prAll">✓ Confirmar pago total</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="number" id="prAmt" step="1000" min="0" placeholder="Monto abono" style="width:130px">
+          <button class="btn btn-gold btn-sm" id="prPart">✓ Abono</button>
+        </div>
+        <button class="btn btn-red btn-sm" id="prRej">✗ Rechazar</button>
+      </div>`:""}
+      <div style="margin-top:12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="closeGModal()">Cerrar</button></div>`);
+    const act=async(body)=>{try{
+        await api("/admin/raffles/"+currentId+"/numbers/"+n+"/proof",{method:"PUT",body:JSON.stringify(body)});
+        closeGModal();const dd=await api("/admin/raffles");DB=dd;renderNumbers();renderStats();renderBuyerCount();flash();
+        toast(body.action==="reject"?"Comprobante rechazado":"<b>✓</b> Pago confirmado");
+      }catch(e){toast("⚠️ "+e.message);}};
+    const bAll=$("#prAll");if(bAll)bAll.addEventListener("click",()=>act({action:"approve"}));
+    const bPart=$("#prPart");if(bPart)bPart.addEventListener("click",()=>{
+      const v=parseInt($("#prAmt").value,10)||0;
+      if(v<=0){toast("Escribe el monto del abono");return;}
+      act({action:"approve",amount:v});});
+    const bRej=$("#prRej");if(bRej)bRej.addEventListener("click",()=>{if(confirm("¿Rechazar este comprobante? El cliente deberá enviarlo de nuevo."))act({action:"reject"});});
+  }catch(e){showGModal('<div style="color:var(--muted)">⚠️ '+esc(e.message)+'</div><div style="margin-top:12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="closeGModal()">Cerrar</button></div>');}
+}
+
+// ---- HISTORIAL DE ABONOS (cuotas) ----
+async function openHistory(n){
+  const r=cur();const d=r.numbers.find(x=>x.number===n);if(!d)return;
+  showGModal('<div style="text-align:center;color:var(--muted)">Cargando historial…</div>');
+  try{
+    const h=await api("/admin/raffles/"+currentId+"/numbers/"+n+"/payments");
+    const price=+r.price||0;
+    const rows=(h.payments||[]).map(p=>`<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border,#333)">${p.date}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border,#333);text-align:right;font-weight:700;color:${p.amount<0?"#e05656":"var(--gold-soft)"}">${fmt(p.amount)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border,#333)">${ML(p.method)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border,#333);color:var(--muted-2);font-size:.78rem">${esc(p.note||"")}</td></tr>`).join("");
+    showGModal(`
+      <h3 style="margin:0 0 4px">📜 Abonos — Boleta ${n}</h3>
+      <div style="color:var(--muted-2);font-size:.82rem;margin-bottom:10px">${esc(d.name||"(sin nombre)")} · valor ${fmt(price)}</div>
+      ${rows?`<table style="width:100%;border-collapse:collapse;font-size:.86rem">
+        <thead><tr><th style="text-align:left;padding:6px 8px;color:var(--muted-2)">Fecha</th><th style="text-align:right;padding:6px 8px;color:var(--muted-2)">Monto</th><th style="text-align:left;padding:6px 8px;color:var(--muted-2)">Forma</th><th style="text-align:left;padding:6px 8px;color:var(--muted-2)">Nota</th></tr></thead>
+        <tbody>${rows}</tbody></table>`:'<div style="color:var(--muted)">Sin abonos registrados todavía.</div>'}
+      <div style="margin-top:10px;font-weight:700">Total abonado: ${fmt(h.paidAmount||0)} · Falta: ${fmt(Math.max(0,price-(h.paidAmount||0)))}</div>
+      <div style="margin-top:12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="closeGModal()">Cerrar</button></div>`);
+  }catch(e){showGModal('<div style="color:var(--muted)">⚠️ '+esc(e.message)+'</div><div style="margin-top:12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="closeGModal()">Cerrar</button></div>');}
 }
 // recibo de abono/pago por WhatsApp (mensaje cordial de comprobante para el cliente)
-function sendReceipt(n){
+async function sendReceipt(n){
   const r=cur();const d=r.numbers.find(x=>x.number===n);if(!d)return;
   const tel=(d.phone||"").replace(/\D/g,"");
   if(!tel){toast("Esta boleta no tiene teléfono");return;}
   const price=+r.price||0, ab=+d.paidAmount||0, falta=Math.max(0,price-ab);
   const nombre=(d.name||"").trim(), saludo=nombre?"Hola "+nombre:"Hola";
   const premio=r.prizeName?" (premio: "+r.prizeName+")":"";
+  const viaMet=METLBL[d.method]?` (vía ${METLBL[d.method]})`:"";
+  // detalle de cuotas (si hay más de un abono registrado)
+  let cuotas="";
+  try{
+    const h=await api("/admin/raffles/"+currentId+"/numbers/"+n+"/payments");
+    const ps=(h.payments||[]).filter(p=>p.amount>0);
+    if(ps.length>1)cuotas="\n\nDetalle de tus abonos:\n"+ps.map(p=>`• ${p.date}: ${fmt(p.amount)}${METLBL[p.method]?" ("+METLBL[p.method]+")":""}`).join("\n");
+  }catch(e){}
   let msg;
   if(d.payment==="paid"){
-    msg=`${saludo} 😊, te confirmamos el *pago completo* de tu boleta *${n}* en la ${r.name}${premio}. ¡Tu participación quedó asegurada! 🎟️✨ Mucha suerte en el sorteo. — Perfumes Originales`;
+    msg=`${saludo} 😊, te confirmamos el *pago completo*${viaMet} de tu boleta *${n}* en la ${r.name}${premio}. ¡Tu participación quedó asegurada! 🎟️✨${cuotas?cuotas+"\n":" "}Mucha suerte en el sorteo. — Perfumes Originales`;
   }else{
-    msg=`${saludo} 😊, ¡recibimos tu abono! 🎟️\nRifa: ${r.name}${premio}\nBoleta: *${n}*\nAbonado: *${fmt(ab)}*\nSaldo pendiente: *${fmt(falta)}*\n\nGracias por tu pago. Cuando completes el saldo te lo confirmamos. — Perfumes Originales`;
+    msg=`${saludo} 😊, ¡recibimos tu abono${viaMet}! 🎟️\nRifa: ${r.name}${premio}\nBoleta: *${n}*\nAbonado: *${fmt(ab)}*\nSaldo pendiente: *${fmt(falta)}*${cuotas}\n\nGracias por tu pago. Cuando completes el saldo te lo confirmamos. — Perfumes Originales`;
   }
   if(isDirty())toast("💡 Recuerda Guardar para que el recibo use el monto actualizado");
   const wa="https://wa.me/"+(tel.length===10?"57"+tel:tel)+"?text="+encodeURIComponent(msg);
@@ -506,7 +599,7 @@ async function liberar(n){
   if(!confirm("¿Liberar la boleta "+n+"? Quedará DISPONIBLE y se borrarán el nombre, teléfono y pago."))return;
   try{
     await api("/admin/raffles/"+currentId+"/numbers/"+n,{method:"PUT",body:JSON.stringify({status:"available",clear:true})});
-    d.status="available";d.payment="";d.name="";d.phone="";d.date="";
+    d.status="available";d.payment="";d.method="";d.paidAmount=0;d.name="";d.phone="";d.date="";
     dirtyNums.delete(n);updateSaveUI();
     renderNumbers();renderStats();renderBuyerCount();flash();toast("<b>✓</b> Boleta "+n+" liberada");
   }catch(e){toast("⚠️ "+e.message);}
@@ -533,7 +626,7 @@ async function saveAll(){
     for(const n of Array.from(dirtyNums)){
       const d=cur().numbers.find(x=>x.number===n);if(!d)continue;
       await api("/admin/raffles/"+currentId+"/numbers/"+n,{method:"PUT",
-        body:JSON.stringify({status:d.status,payment:d.payment,paidAmount:d.paidAmount||0,name:d.name,phone:d.phone,date:d.date})});
+        body:JSON.stringify({status:d.status,payment:d.payment,method:d.method||"",paidAmount:d.paidAmount||0,name:d.name,phone:d.phone,date:d.date})});
     }
     clearDirty();renderTabs();renderStats();renderBuyerCount();flash();toast("<b>✓</b> Cambios guardados");
   }catch(e){toast("⚠️ No se pudo guardar: "+e.message);}
@@ -581,11 +674,11 @@ async function getRows(){const d=await api("/admin/reservations");return d.rows|
 function renderBuyerCount(){getRows().then(r=>{const el=$("#buyerCount");if(el)el.textContent=r.length?r.length+" registro(s)":"Sin compradores aún";}).catch(()=>{});}
 $("#exCsv").addEventListener("click",async()=>{
   const rows=await getRows();if(!rows.length){toast("No hay compradores para exportar");return;}
-  const head=["Rifa","Premio","Numero","Comprador","Telefono","Estado","Pago","Abonado","Falta","Fecha","Valor"];
+  const head=["Rifa","Premio","Numero","Comprador","Telefono","Estado","Pago","Forma","Abonado","Falta","Fecha","Valor"];
   const e2=v=>{v=(v==null?"":String(v));return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const LAB={available:"Disponible",reserved:"Apartada",sold:"Vendida"};
   const PL=p=>p==="paid"?"Pagado":p==="pending"?"Pendiente":p==="partial"?"Abono":"—";
-  const lines=[head.join(";")].concat(rows.map(r=>[r.rifa,r.premio,r.numero,r.comprador,r.telefono,LAB[r.estado]||r.estado,PL(r.pago),r.abonado||0,r.falta!=null?r.falta:"",r.fecha,r.valor].map(e2).join(";")));
+  const lines=[head.join(";")].concat(rows.map(r=>[r.rifa,r.premio,r.numero,r.comprador,r.telefono,LAB[r.estado]||r.estado,PL(r.pago),ML(r.metodo),r.abonado||0,r.falta!=null?r.falta:"",r.fecha,r.valor].map(e2).join(";")));
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="compradores-rifas.csv";a.click();
   toast("<b>⤓</b> Excel exportado");
@@ -596,8 +689,8 @@ $("#exPdf").addEventListener("click",async()=>{
   const PL=p=>p==="paid"?"Pagado":p==="pending"?"Pendiente":p==="partial"?"Abono":"—";
   const totRec=rows.reduce((s,r)=>s+(r.pago==="paid"?(+r.valor||0):r.pago==="partial"?(+r.abonado||0):0),0);
   const totPend=rows.reduce((s,r)=>s+(r.pago==="pending"||r.pago==="partial"?(+r.falta||0):0),0);
-  const trs=rows.map(r=>`<tr><td>${r.rifa}</td><td>${r.premio}</td><td style="text-align:center;font-weight:700">${r.numero}</td><td>${r.comprador}</td><td>${r.telefono}</td><td>${LAB[r.estado]||r.estado}</td><td>${PL(r.pago)}</td><td style="text-align:right">${fmt(r.abonado||0)}</td><td style="text-align:right">${fmt(r.falta||0)}</td><td>${r.fecha}</td><td style="text-align:right">${fmt(r.valor)}</td></tr>`).join("");
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Compradores de Rifas</title><style>body{font-family:Arial,sans-serif;color:#111;padding:28px}h1{font-size:20px;margin:0 0 2px}.sub{color:#666;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:7px 9px;text-align:left}th{background:#1a1407;color:#e3c98a;text-transform:uppercase;font-size:10px}tr:nth-child(even) td{background:#faf8f3}.tot{margin-top:16px;font-size:13px}.tot b{color:#a07e34}@media print{.noprint{display:none}}</style></head><body><h1>Perfumes Originales — Compradores de Rifas</h1><div class="sub">Generado: ${new Date().toLocaleString("es-CO")} · ${rows.length} registros</div><table><thead><tr><th>Rifa</th><th>Premio</th><th>N°</th><th>Comprador</th><th>Teléfono</th><th>Estado</th><th>Pago</th><th>Abonado</th><th>Falta</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>${trs}</tbody></table><div class="tot">Recaudado: <b>${fmt(totRec)}</b> &nbsp;·&nbsp; Por cobrar: <b>${fmt(totPend)}</b></div><button class="noprint" onclick="window.print()" style="margin-top:20px;padding:10px 18px;background:#c9a24b;border:none;border-radius:8px;font-weight:700;cursor:pointer">Imprimir / Guardar PDF</button><script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
+  const trs=rows.map(r=>`<tr><td>${r.rifa}</td><td>${r.premio}</td><td style="text-align:center;font-weight:700">${r.numero}</td><td>${r.comprador}</td><td>${r.telefono}</td><td>${LAB[r.estado]||r.estado}</td><td>${PL(r.pago)}</td><td>${ML(r.metodo)}</td><td style="text-align:right">${fmt(r.abonado||0)}</td><td style="text-align:right">${fmt(r.falta||0)}</td><td>${r.fecha}</td><td style="text-align:right">${fmt(r.valor)}</td></tr>`).join("");
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Compradores de Rifas</title><style>body{font-family:Arial,sans-serif;color:#111;padding:28px}h1{font-size:20px;margin:0 0 2px}.sub{color:#666;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:7px 9px;text-align:left}th{background:#1a1407;color:#e3c98a;text-transform:uppercase;font-size:10px}tr:nth-child(even) td{background:#faf8f3}.tot{margin-top:16px;font-size:13px}.tot b{color:#a07e34}@media print{.noprint{display:none}}</style></head><body><h1>Perfumes Originales — Compradores de Rifas</h1><div class="sub">Generado: ${new Date().toLocaleString("es-CO")} · ${rows.length} registros</div><table><thead><tr><th>Rifa</th><th>Premio</th><th>N°</th><th>Comprador</th><th>Teléfono</th><th>Estado</th><th>Pago</th><th>Forma</th><th>Abonado</th><th>Falta</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>${trs}</tbody></table><div class="tot">Recaudado: <b>${fmt(totRec)}</b> &nbsp;·&nbsp; Por cobrar: <b>${fmt(totPend)}</b></div><button class="noprint" onclick="window.print()" style="margin-top:20px;padding:10px 18px;background:#c9a24b;border:none;border-radius:8px;font-weight:700;cursor:pointer">Imprimir / Guardar PDF</button><script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
   const w=window.open("","_blank");if(!w){toast("Permite las ventanas emergentes");return;}w.document.open();w.document.write(html);w.document.close();
 });
 
@@ -612,7 +705,7 @@ $("#cobBtn").addEventListener("click",async()=>{
     sum.textContent=rows.length+" por cobrar · falta "+fmt(d.totalFalta||0);
     list.innerHTML=rows.map((r,i)=>`<div class="cob">
       <div class="top"><span class="who">${esc(r.comprador||"(sin nombre)")}</span>
-        <span class="meta">${r.rifa} · boleta ${r.numero} · ${esc(r.telefono||"sin teléfono")}${r.abonado?" · abonado "+fmt(r.abonado):""}</span>
+        <span class="meta">${r.rifa} · boleta ${r.numero} · ${esc(r.telefono||"sin teléfono")}${METLBL[r.metodo]?" · "+METLBL[r.metodo]:""}${r.abonado?" · abonado "+fmt(r.abonado):""}</span>
         <span class="due">Falta ${fmt(r.falta)}</span></div>
       <div class="msg" id="cobMsg${i}">${esc(r.mensaje)}</div>
       <div class="acts">
@@ -627,6 +720,38 @@ $("#cobBtn").addEventListener("click",async()=>{
         try{document.execCommand("copy");toast("<b>⧉</b> Mensaje copiado");}catch(e){toast("No se pudo copiar");}ta.remove();});
     }));
   }catch(e){sum.textContent="";toast("⚠️ "+e.message);}
+});
+
+// ---- resumen del día: texto listo para copiar ----
+$("#sumBtn").addEventListener("click",async()=>{
+  const ta=$("#sumText"),cp=$("#sumCopy");
+  ta.style.display="block";ta.value="Generando resumen…";
+  try{
+    const s=await api("/admin/summary");
+    const L=[];
+    L.push("📋 RESUMEN DEL DÍA — "+s.fecha+" · Perfumes Originales");
+    L.push("");
+    L.push("🎟️ Reservas de hoy: "+s.reservasHoy.length);
+    s.reservasHoy.forEach(x=>L.push("  • "+x.rifa+" · boleta "+x.boleta+" · "+(x.nombre||"(sin nombre)")+" · "+x.metodo));
+    L.push("");
+    L.push("💰 Pagos de hoy: "+s.pagosHoy.length+" · Total: "+fmt(s.totalHoy));
+    s.pagosHoy.forEach(x=>L.push("  • "+x.rifa+" · boleta "+x.boleta+" · "+(x.nombre||"")+" · "+fmt(x.monto)+" · "+x.metodo));
+    L.push("");
+    L.push("📸 Comprobantes por revisar: "+s.proofsPend.length);
+    s.proofsPend.forEach(x=>L.push("  • "+x.rifa+" · boleta "+x.boleta+" · "+(x.nombre||"")));
+    L.push("");
+    L.push("💌 Deudores: "+s.deudores.length+" · Por cobrar: "+fmt(s.porCobrar));
+    s.deudores.forEach(x=>L.push("  • "+x.rifa+" · boleta "+x.boleta+" · "+(x.nombre||"(sin nombre)")+" · falta "+fmt(x.falta)));
+    L.push("");
+    L.push("🎫 Boletas libres: "+(s.libres.length?s.libres.map(x=>x.rifa+": "+x.libres).join(" · "):"(sin rifas activas)"));
+    ta.value=L.join("\n");
+    cp.style.display="";
+  }catch(e){ta.value="⚠️ "+e.message;}
+});
+$("#sumCopy").addEventListener("click",()=>{
+  const t=$("#sumText").value;
+  navigator.clipboard.writeText(t).then(()=>toast("<b>⧉</b> Resumen copiado")).catch(()=>{
+    $("#sumText").select();try{document.execCommand("copy");toast("<b>⧉</b> Resumen copiado");}catch(e){toast("No se pudo copiar");}});
 });
 
 // ---- tiempo real: refresca cada 8s para ver reservas nuevas ----

@@ -9,6 +9,7 @@ const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
+const crypto = require("crypto");
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
@@ -19,7 +20,7 @@ const PORT = process.env.PORT || 3000;
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors()); // mismo dominio vía nginx; abierto por simplicidad
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" })); // 2mb: los comprobantes viajan como dataURL comprimido (~500KB máx)
 
 // ---- helpers ----
 const NUMBERS = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -43,6 +44,22 @@ function normalizePayment(price, payment, paidAmountRaw) {
     amt = 0;
   }
   return { payment: pay, paidAmount: amt };
+}
+
+// Forma de pago (medio): solo valores conocidos; cualquier otro -> "" (sin definir)
+const PAY_METHODS = ["efectivo", "nequi", "daviplata", "banco"];
+const normMethod = (m) => (PAY_METHODS.includes((m || "").toString().toLowerCase()) ? (m || "").toString().toLowerCase() : "");
+const METHOD_LABEL = { efectivo: "Efectivo", nequi: "Nequi", daviplata: "Daviplata", banco: "Banco (transferencia)" };
+
+// Inicio del día de HOY en Colombia (UTC-5), para el resumen diario
+function bogotaDayStart() {
+  const b = new Date(Date.now() - 5 * 3600e3);
+  return new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate(), 5, 0, 0));
+}
+// Registra una cuota en el historial (solo si el delta no es 0)
+async function logPayment(numId, amount, method, note) {
+  if (!amount) return;
+  await prisma.payment.create({ data: { numId, amount, method: normMethod(method), note: (note || "").slice(0, 120) } });
 }
 
 function sign(user) {
@@ -78,10 +95,13 @@ function adminRaffle(r) {
     finished: !!r.finishedAt,
     numbers: r.numbers.slice().sort((a, b) => a.number.localeCompare(b.number)).map((n) => ({
       number: n.number, status: n.status, payment: n.payment,
+      method: n.payMethod || "",
       paidAmount: n.paidAmount || 0,
       falta: Math.max(0, (r.price || 0) - (n.paidAmount || 0)),
       name: n.buyerName, phone: n.buyerPhone,
       date: n.reservedAt ? n.reservedAt.toISOString().slice(0, 10) : "",
+      proofStatus: n.proofStatus || "", // "" | pending | approved | rejected (la imagen se pide aparte)
+      proofAt: n.proofAt ? n.proofAt.toISOString() : "",
     })),
   };
 }
@@ -116,6 +136,7 @@ app.post("/api/raffles/:id/reserve", reserveLimiter, async (req, res) => {
     const name = (req.body.name || "").toString().trim().slice(0, 80);
     const phone = (req.body.phone || "").toString().trim().slice(0, 40);
     const reqPayment = ["paid", "partial"].includes(req.body.payment) ? req.body.payment : "pending";
+    const method = normMethod(req.body.method);
 
     if (!NUMBERS.includes(number)) return res.status(400).json({ error: "Número inválido (01–10)" });
     if (!name || onlyDigits(phone).length < 7) return res.status(400).json({ error: "Nombre y teléfono válidos son obligatorios" });
@@ -127,17 +148,43 @@ app.post("/api/raffles/:id/reserve", reserveLimiter, async (req, res) => {
     const norm = normalizePayment(raffle.price, reqPayment, req.body.paidAmount);
 
     // UPDATE condicional: solo cambia si sigue 'available' -> bloqueo real
+    const token = crypto.randomBytes(16).toString("hex"); // el comprador lo usa luego para subir su comprobante
     const result = await prisma.raffleNumber.updateMany({
       where: { raffleId: id, number, status: "available" },
-      data: { status: "reserved", payment: norm.payment, paidAmount: norm.paidAmount, buyerName: name, buyerPhone: phone, reservedAt: new Date() },
+      data: { status: "reserved", payment: norm.payment, payMethod: method, paidAmount: norm.paidAmount, buyerName: name, buyerPhone: phone, reservedAt: new Date(), proofToken: token, proofImage: "", proofStatus: "", proofAt: null },
     });
     if (result.count === 0) {
       return res.status(409).json({ error: "Esa boleta acaba de ser apartada por otra persona. Elige otra." });
     }
-    res.json({ ok: true, number, raffle: raffle.name });
+    // historial de cuotas: si reservó pagando o abonando, queda la primera cuota registrada
+    if (norm.paidAmount > 0) {
+      const row = await prisma.raffleNumber.findFirst({ where: { raffleId: id, number } });
+      if (row) await logPayment(row.id, norm.paidAmount, method, "Al reservar (reportado por el cliente)");
+    }
+    res.json({ ok: true, number, raffle: raffle.name, token });
   } catch (e) {
     res.status(500).json({ error: "No se pudo apartar. Intenta de nuevo." });
   }
+});
+
+// SUBIR COMPROBANTE de pago (cliente) — requiere el token que recibió al reservar
+const proofLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 });
+app.post("/api/raffles/:id/numbers/:number/proof", proofLimiter, async (req, res) => {
+  try {
+    const number = String(req.params.number || "").padStart(2, "0");
+    const token = (req.body.token || "").toString();
+    const image = (req.body.image || "").toString();
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) return res.status(400).json({ error: "Imagen inválida" });
+    if (image.length > 1_400_000) return res.status(400).json({ error: "La imagen es muy pesada. Intenta de nuevo (se comprime sola)." });
+    const row = await prisma.raffleNumber.findFirst({ where: { raffleId: req.params.id, number } });
+    if (!row || row.status === "available") return res.status(404).json({ error: "Boleta no encontrada" });
+    if (!token || token !== row.proofToken) return res.status(403).json({ error: "Esta reserva no se hizo desde este dispositivo. Envíanos el comprobante por WhatsApp." });
+    await prisma.raffleNumber.update({
+      where: { id: row.id },
+      data: { proofImage: image, proofStatus: "pending", proofAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "No se pudo subir el comprobante. Intenta de nuevo." }); }
 });
 
 // =============================================================
@@ -217,21 +264,156 @@ app.put("/api/admin/raffles/:id/numbers/:number", auth, async (req, res) => {
     if (b.name !== undefined) data.buyerName = (b.name || "").toString().slice(0, 80);
     if (b.phone !== undefined) data.buyerPhone = (b.phone || "").toString().slice(0, 40);
     if (b.date !== undefined) data.reservedAt = b.date ? new Date(b.date) : null;
+    if (b.method !== undefined) data.payMethod = normMethod(b.method);
 
-    // liberar: limpiar todo el comprador y el abono
+    // liberar: limpiar todo el comprador, el abono, el comprobante y el historial de cuotas
+    let delta = 0;
     if (b.clear && (b.status === "available" || data.status === "available")) {
       data.status = "available"; data.buyerName = ""; data.buyerPhone = "";
-      data.payment = ""; data.paidAmount = 0; data.reservedAt = null;
+      data.payment = ""; data.payMethod = ""; data.paidAmount = 0; data.reservedAt = null;
+      data.proofImage = ""; data.proofStatus = ""; data.proofAt = null; data.proofToken = "";
+      await prisma.payment.deleteMany({ where: { numId: existing.id } });
     } else if (b.payment !== undefined || b.paidAmount !== undefined) {
       // fusiona lo que llega con lo existente y normaliza (clamp + coherencia)
       const payment = b.payment !== undefined ? b.payment : existing.payment;
       const paidAmount = b.paidAmount !== undefined ? b.paidAmount : existing.paidAmount;
       const norm = normalizePayment(raffle.price, payment, paidAmount);
       data.payment = norm.payment; data.paidAmount = norm.paidAmount;
+      delta = norm.paidAmount - (existing.paidAmount || 0); // cuota nueva (o ajuste si es negativo)
     }
     await prisma.raffleNumber.updateMany({ where: { raffleId: req.params.id, number: req.params.number }, data });
+    if (delta !== 0) {
+      const met = data.payMethod !== undefined ? data.payMethod : existing.payMethod;
+      await logPayment(existing.id, delta, met, delta > 0 ? "Registrado en el panel" : "Ajuste/corrección en el panel");
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: "No se pudo actualizar la boleta" }); }
+});
+
+// COMPROBANTE (admin): ver imagen
+app.get("/api/admin/raffles/:id/numbers/:number/proof", auth, async (req, res) => {
+  try {
+    const row = await prisma.raffleNumber.findFirst({ where: { raffleId: req.params.id, number: req.params.number } });
+    if (!row || !row.proofImage) return res.status(404).json({ error: "Sin comprobante" });
+    res.json({ image: row.proofImage, status: row.proofStatus, at: row.proofAt ? row.proofAt.toISOString() : "" });
+  } catch (e) { res.status(500).json({ error: "No se pudo cargar el comprobante" }); }
+});
+
+// COMPROBANTE (admin): aprobar (pago total o abono por monto) o rechazar
+app.put("/api/admin/raffles/:id/numbers/:number/proof", auth, async (req, res) => {
+  try {
+    const action = (req.body.action || "").toString(); // approve | reject
+    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.id } });
+    const row = await prisma.raffleNumber.findFirst({ where: { raffleId: req.params.id, number: req.params.number } });
+    if (!raffle || !row) return res.status(404).json({ error: "Boleta no encontrada" });
+
+    if (action === "reject") {
+      await prisma.raffleNumber.update({ where: { id: row.id }, data: { proofStatus: "rejected" } });
+      return res.json({ ok: true });
+    }
+    if (action !== "approve") return res.status(400).json({ error: "Acción inválida" });
+
+    const price = raffle.price || 0;
+    const amount = req.body.amount !== undefined ? Math.max(0, parseInt(req.body.amount, 10) || 0) : null;
+    const method = req.body.method !== undefined ? normMethod(req.body.method) : row.payMethod;
+    // sin monto -> pago total; con monto -> se suma como abono al acumulado
+    const newPaid = amount === null ? price : (row.paidAmount || 0) + amount;
+    const norm = normalizePayment(price, newPaid >= price ? "paid" : "partial", newPaid);
+    const delta = norm.paidAmount - (row.paidAmount || 0);
+    await prisma.raffleNumber.update({
+      where: { id: row.id },
+      data: {
+        payment: norm.payment, paidAmount: norm.paidAmount, payMethod: method,
+        status: norm.payment === "paid" ? "sold" : "reserved",
+        proofStatus: "approved",
+      },
+    });
+    if (delta !== 0) await logPayment(row.id, delta, method, "Comprobante aprobado");
+    res.json({ ok: true, payment: norm.payment, paidAmount: norm.paidAmount });
+  } catch (e) { res.status(500).json({ error: "No se pudo procesar el comprobante" }); }
+});
+
+// HISTORIAL DE CUOTAS de una boleta (para el panel y el recibo)
+app.get("/api/admin/raffles/:id/numbers/:number/payments", auth, async (req, res) => {
+  try {
+    const row = await prisma.raffleNumber.findFirst({
+      where: { raffleId: req.params.id, number: req.params.number },
+      include: { payments: { orderBy: { createdAt: "asc" } } },
+    });
+    if (!row) return res.status(404).json({ error: "Boleta no encontrada" });
+    res.json({
+      paidAmount: row.paidAmount || 0,
+      payments: row.payments.map((p) => ({
+        amount: p.amount, method: p.method, note: p.note,
+        date: p.createdAt.toISOString().slice(0, 10),
+        time: p.createdAt.toISOString(),
+      })),
+    });
+  } catch (e) { res.status(500).json({ error: "No se pudo cargar el historial" }); }
+});
+
+// RESUMEN DEL DÍA (para el botón del panel: reservas, pagos, deudores, libres, comprobantes)
+app.get("/api/admin/summary", auth, async (req, res) => {
+  try {
+    const start = bogotaDayStart();
+    const raffles = await prisma.raffle.findMany({ include: { numbers: true }, orderBy: { createdAt: "asc" } });
+    const pagosHoy = await prisma.payment.findMany({
+      where: { createdAt: { gte: start } },
+      include: { num: { include: { raffle: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    const reservasHoy = [], deudores = [], libres = [], proofsPend = [];
+    let totalHoy = 0, porCobrar = 0;
+    raffles.forEach((r) => {
+      const act = r.active && !r.finishedAt;
+      if (act) libres.push({ rifa: r.name, libres: r.numbers.filter((n) => n.status === "available").length });
+      r.numbers.forEach((n) => {
+        if (n.reservedAt && n.reservedAt >= start) reservasHoy.push({ rifa: r.name, boleta: n.number, nombre: n.buyerName, metodo: METHOD_LABEL[n.payMethod] || "—" });
+        const falta = Math.max(0, (r.price || 0) - (n.paidAmount || 0));
+        if ((n.payment === "pending" || n.payment === "partial") && falta > 0 && (n.buyerName || n.buyerPhone)) {
+          deudores.push({ rifa: r.name, boleta: n.number, nombre: n.buyerName, falta });
+          porCobrar += falta;
+        }
+        if (n.proofStatus === "pending") proofsPend.push({ rifa: r.name, boleta: n.number, nombre: n.buyerName });
+      });
+    });
+    pagosHoy.forEach((p) => { if (p.amount > 0) totalHoy += p.amount; });
+    res.json({
+      fecha: start.toISOString().slice(0, 10),
+      reservasHoy,
+      pagosHoy: pagosHoy.map((p) => ({ rifa: p.num ? (p.num.raffle ? p.num.raffle.name : "") : "", boleta: p.num ? p.num.number : "", nombre: p.num ? p.num.buyerName : "", monto: p.amount, metodo: METHOD_LABEL[p.method] || "—", nota: p.note })),
+      totalHoy, deudores, porCobrar, libres, proofsPend,
+    });
+  } catch (e) { res.status(500).json({ error: "No se pudo generar el resumen" }); }
+});
+
+// LIBRO CONTABLE (para Google Sheets vía Apps Script) — protegido con EXPORT_KEY del .env
+const ledgerLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
+app.get("/api/export/ledger", ledgerLimiter, async (req, res) => {
+  try {
+    const key = process.env.EXPORT_KEY || "";
+    if (!key || req.query.key !== key) return res.status(403).json({ error: "No autorizado" });
+    const raffles = await prisma.raffle.findMany({ include: { numbers: { include: { payments: true } } }, orderBy: { createdAt: "asc" } });
+    const pagos = [], reservas = [];
+    raffles.forEach((r) => r.numbers
+      .slice().sort((a, b) => a.number.localeCompare(b.number))
+      .forEach((n) => {
+        if (n.status !== "available" || n.buyerName || n.buyerPhone) {
+          reservas.push({
+            fecha: n.reservedAt ? n.reservedAt.toISOString().slice(0, 10) : "",
+            rifa: r.name, boleta: n.number, comprador: n.buyerName, telefono: n.buyerPhone,
+            estado: n.status, pago: n.payment, forma: METHOD_LABEL[n.payMethod] || "",
+            abonado: n.paidAmount || 0, falta: Math.max(0, (r.price || 0) - (n.paidAmount || 0)), valor: r.price,
+          });
+        }
+        n.payments.forEach((p) => pagos.push({
+          fecha: p.createdAt.toISOString().replace("T", " ").slice(0, 16),
+          rifa: r.name, boleta: n.number, comprador: n.buyerName, telefono: n.buyerPhone,
+          monto: p.amount, forma: METHOD_LABEL[p.method] || "", nota: p.note,
+        }));
+      }));
+    res.json({ generado: new Date().toISOString(), pagos, reservas });
+  } catch (e) { res.status(500).json({ error: "No se pudo exportar" }); }
 });
 
 // registrar resultado del sorteo -> calcula la boleta ganadora (último dígito)
@@ -275,7 +457,7 @@ app.get("/api/admin/reservations", auth, async (req, res) => {
         rows.push({
           rifa: r.name, premio: r.prizeName || "", numero: n.number,
           comprador: n.buyerName, telefono: n.buyerPhone,
-          estado: n.status, pago: n.payment,
+          estado: n.status, pago: n.payment, metodo: n.payMethod || "",
           abonado, falta: Math.max(0, (r.price || 0) - abonado),
           fecha: n.reservedAt ? n.reservedAt.toISOString().slice(0, 10) : "",
           valor: r.price,
@@ -302,12 +484,13 @@ app.get("/api/admin/collections", auth, async (req, res) => {
         const nombre = (n.buyerName || "").trim();
         const saludo = nombre ? `Hola ${nombre}` : "Hola";
         const abonoTxt = abonado > 0 ? ` Hasta ahora has abonado ${fmt(abonado)} y` : "";
-        const mensaje = `${saludo} 😊, ¡esperamos que estés muy bien! Te escribimos de *Perfumes Originales* con un recordatorio cordial sobre la *${r.name}*${r.prizeName ? ` (premio: ${r.prizeName})` : ""}. Tienes apartada la boleta *${n.number}*.${abonoTxt} queda un saldo pendiente de *${fmt(falta)}* para completar tu pago. Cuando puedas, nos coordinas el abono. ¡Mil gracias por participar! 🎟️✨`;
+        const metTxt = n.payMethod && METHOD_LABEL[n.payMethod] ? ` Puedes hacerlo por *${METHOD_LABEL[n.payMethod]}* como acordamos.` : "";
+        const mensaje = `${saludo} 😊, ¡esperamos que estés muy bien! Te escribimos de *Perfumes Originales* con un recordatorio cordial sobre la *${r.name}*${r.prizeName ? ` (premio: ${r.prizeName})` : ""}. Tienes apartada la boleta *${n.number}*.${abonoTxt} queda un saldo pendiente de *${fmt(falta)}* para completar tu pago.${metTxt} Cuando puedas, nos coordinas el abono. ¡Mil gracias por participar! 🎟️✨`;
         const tel = (n.buyerPhone || "").replace(/\D/g, "");
         const wa = tel ? `https://wa.me/${tel.length === 10 ? "57" + tel : tel}?text=${encodeURIComponent(mensaje)}` : "";
         rows.push({
           rifa: r.name, numero: n.number, comprador: nombre, telefono: n.buyerPhone,
-          abonado, falta, valor: r.price, pago: n.payment, mensaje, wa,
+          abonado, falta, valor: r.price, pago: n.payment, metodo: n.payMethod || "", mensaje, wa,
         });
       }));
     const totalFalta = rows.reduce((s, x) => s + x.falta, 0);

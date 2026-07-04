@@ -128,6 +128,46 @@ const CFG=window.SITE_CONFIG||{};
 const PRODUCTS=(window.CATALOG&&window.CATALOG.products)||[];
 const IMG="assets/products/";
 const API="/api";
+
+// ==== DATOS DE PAGO — EDITA AQUÍ ====
+// Cambia ready a true y pon tus datos reales. Mientras ready sea false, el bloque no se muestra.
+// El QR de Nequi: en la app Nequi > Mi QR > compartir/guardar imagen, y súbela como web/assets/nequi-qr.png
+const PAY_INFO={
+  ready:true,
+  nequi:{number:"312 287 0985",holder:"Jerson Molina",qr:"assets/nequi-qr.png"},
+  daviplata:{number:"312 287 0985",holder:"Jerson Molina"},
+  banco:{bank:"Bancolombia",type:"Ahorros",number:"725-517967-70",holder:"Jerson Molina"},
+  breb:{key:"3122870985"} // llave Bre-B (pagos instantáneos desde cualquier banco)
+};
+function payInfoHTML(met){
+  if(!PAY_INFO.ready)return "";
+  const box=(inner)=>`<div style="background:var(--surface);border:1px solid var(--gold-deep);border-radius:12px;padding:12px 14px;margin-top:10px;font-size:.86rem">${inner}</div>`;
+  const cpBtn=(v)=>`<button type="button" class="btn btn-ghost btn-sm" data-cp="${v}" style="padding:4px 10px;font-size:.76rem">⧉ Copiar</button>`;
+  if(met==="nequi"){const q=PAY_INFO.nequi;
+    return box(`<b style="color:var(--gold-soft)">📱 Paga por Nequi ahora mismo</b><br>
+      Número: <b>${q.number}</b> ${cpBtn(q.number.replace(/\D/g,""))}<br>
+      A nombre de: ${q.holder}
+      <div style="text-align:center;margin-top:8px"><img src="${q.qr}" alt="QR Nequi" style="max-width:170px;border-radius:10px" onerror="this.parentNode.style.display='none'"><div style="font-size:.72rem;color:var(--muted-2)">Escanea el QR desde tu app Nequi</div></div>`);}
+  if(met==="daviplata"){const dv=PAY_INFO.daviplata;
+    return box(`<b style="color:var(--gold-soft)">📲 Paga por Daviplata ahora mismo</b><br>
+      Número: <b>${dv.number}</b> ${cpBtn(dv.number.replace(/\D/g,""))}<br>
+      A nombre de: ${dv.holder}`);}
+  if(met==="banco"){const b=PAY_INFO.banco;
+    return box(`<b style="color:var(--gold-soft)">🏦 Transferencia bancaria</b><br>
+      ${b.bank} · ${b.type}<br>
+      Cuenta: <b>${b.number}</b> ${cpBtn(b.number.replace(/[^\d-]/g,""))}<br>
+      Titular: ${b.holder}<br>
+      <span style="color:var(--muted-2);font-size:.78rem">⚡ O al instante con <b>Bre-B</b> · llave: <b>${PAY_INFO.breb.key}</b></span> ${cpBtn(PAY_INFO.breb.key)}`);}
+  return box(`💵 Pagas en <b>efectivo</b> al coordinar la entrega. ¡Así de fácil!`);
+}
+function bindCopy(scope){$$("[data-cp]",scope||document).forEach(b=>b.addEventListener("click",()=>{
+  const t=b.dataset.cp;
+  const done=()=>toast("<b>⧉</b> Copiado: "+t);
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>{fallbackCopy(t);done();});}
+  else{fallbackCopy(t);done();}
+}));}
+function fallbackCopy(t){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(e){}ta.remove();}
+
 const $=(s,c)=>(c||document).querySelector(s);
 const $$=(s,c)=>Array.from((c||document).querySelectorAll(s));
 
@@ -267,7 +307,11 @@ function renderBoard(){
       <div class="state">${taken?"Apartado":"Disponible"}</div></div>`;}).join("");
   $$("#board .ticket").forEach(t=>t.addEventListener("click",()=>{
     const n=t.dataset.n;
-    if(statusOf(r,n)!=="available"){toast("La boleta "+n+" ya está apartada");return;}
+    if(statusOf(r,n)!=="available"){
+      // si es SU boleta (reservó en este dispositivo) y aún no subió comprobante, ofrecérselo
+      let tk=null,up=null;try{tk=localStorage.getItem("rftk_"+r.id+"_"+n);up=localStorage.getItem("rfup_"+r.id+"_"+n);}catch(e){}
+      if(online&&tk&&!up){openProofModal(n);return;}
+      toast("La boleta "+n+" ya está apartada");return;}
     openReserve(n);}));
 }
 function updateProgress(){
@@ -297,8 +341,11 @@ function openReserve(n){
     <input id="rfName" placeholder="Ej: María Gómez" autocomplete="name">
     <label>Tu teléfono / WhatsApp</label>
     <input id="rfPhone" placeholder="Ej: 300 123 4567" inputmode="tel" autocomplete="tel">
-    <label>Forma de pago</label>
+    <label>Tipo de pago</label>
     <select id="rfPay"><option value="paid">Pago inmediato</option><option value="partial">Abono (pago parcial)</option><option value="pending">Pendiente de pago</option></select>
+    <label>Forma de pago</label>
+    <select id="rfMethod"><option value="efectivo">💵 Efectivo</option><option value="nequi">📱 Nequi</option><option value="daviplata">📲 Daviplata</option><option value="banco">🏦 Banco / Bre-B</option></select>
+    <div id="rfPayInfo"></div>
     <div id="rfAboWrap" style="display:none;margin-top:10px">
       <label>¿Cuánto vas a abonar ahora? (de ${fmt(r.price)})</label>
       <input id="rfAbo" type="number" inputmode="numeric" min="0" step="1000" placeholder="Ej: 15000">
@@ -320,9 +367,62 @@ function openReserve(n){
     else h.textContent="Abonas "+fmt(a)+" · te quedará pendiente "+fmt(price-a)+".";};
   $("#rfPay").addEventListener("change",togAbo);
   $("#rfAbo")&&$("#rfAbo").addEventListener("input",hintAbo);
+  const updPI=()=>{const el=$("#rfPayInfo");if(!el)return;el.innerHTML=payInfoHTML($("#rfMethod").value);bindCopy(el);};
+  $("#rfMethod").addEventListener("change",updPI);updPI();
   setTimeout(()=>$("#rfName").focus(),100);
 }
 function closeReserve(){$("#rmodal").classList.remove("open");document.body.classList.remove("no-scroll");modalOpen=false;}
+
+// ---- comprobante de pago: comprimir y subir ----
+function compressImage(file,maxW,quality){return new Promise((resolve,reject)=>{
+  const img=new Image();const url=URL.createObjectURL(file);
+  img.onload=()=>{URL.revokeObjectURL(url);
+    const sc=Math.min(1,maxW/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    resolve(c.toDataURL("image/jpeg",quality));};
+  img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("No se pudo leer la imagen"));};
+  img.src=url;});}
+async function uploadProof(rid,n,file,msgEl){
+  const tk=(()=>{try{return localStorage.getItem("rftk_"+rid+"_"+n);}catch(e){return null;}})();
+  if(!tk){if(msgEl)msgEl.textContent="Esta reserva no se hizo en este dispositivo: envíanos el comprobante por WhatsApp 🙏";return;}
+  try{
+    if(msgEl)msgEl.textContent="Preparando imagen…";
+    let dataUrl=await compressImage(file,1280,.8);
+    if(dataUrl.length>900000)dataUrl=await compressImage(file,1000,.6);
+    if(msgEl)msgEl.textContent="Subiendo comprobante…";
+    const res=await fetch(API+"/raffles/"+rid+"/numbers/"+n+"/proof",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:tk,image:dataUrl})});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(d.error||"No se pudo subir");
+    try{localStorage.setItem("rfup_"+rid+"_"+n,"1");}catch(e){}
+    if(msgEl)msgEl.innerHTML="✅ <b>¡Comprobante recibido!</b> Lo revisamos y te confirmamos tu pago.";
+    toast("<b>✓</b> Comprobante enviado");
+  }catch(e){if(msgEl)msgEl.textContent="⚠️ "+e.message+" — también puedes enviarlo por WhatsApp.";}
+}
+function wireProof(rid,n){
+  const b=$("#rfProofBtn"),f=$("#rfProofFile"),m=$("#rfProofMsg");
+  if(!b||!f)return;
+  b.addEventListener("click",()=>f.click());
+  f.addEventListener("change",()=>{if(f.files&&f.files[0]){b.disabled=true;
+    uploadProof(rid,n,f.files[0],m).finally(()=>{b.disabled=false;f.value="";});}});
+}
+// modal para subir comprobante después (el cliente toca SU boleta en el tablero)
+function openProofModal(n){
+  modalOpen=true;const r=current;
+  $("#rmodalBox").innerHTML=`
+    <div class="big-num">${n}</div>
+    <div class="sub">${r.name} · esta boleta es tuya 🎉</div>
+    <p style="color:var(--muted);font-size:.9rem;margin:12px 0">¿Ya realizaste el pago? Sube la foto o pantallazo del comprobante y te lo confirmamos.</p>
+    <input type="file" id="rfProofFile" accept="image/*" style="display:none">
+    <div class="acts">
+      <button class="btn btn-gold" id="rfProofBtn" style="flex:1;justify-content:center">📷 Subir comprobante</button>
+      <button class="btn btn-ghost" id="rfCancel">Cerrar</button>
+    </div>
+    <p id="rfProofMsg" style="font-size:.78rem;color:var(--muted-2);text-align:center;margin-top:10px"></p>`;
+  $("#rmodal").classList.add("open");document.body.classList.add("no-scroll");
+  $("#rfCancel").addEventListener("click",closeReserve);
+  wireProof(r.id,n);
+}
 $("#rmodalBg").addEventListener("click",closeReserve);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReserve();});
 
@@ -330,6 +430,8 @@ async function confirmReserve(n){
   const r=current;const price=+r.price||0;
   const name=$("#rfName").value.trim(),phone=$("#rfPhone").value.trim();
   let pay=$("#rfPay").value, paidAmount=0;
+  const method=($("#rfMethod")&&$("#rfMethod").value)||"efectivo";
+  const methodTxt=method==="nequi"?"Nequi":method==="daviplata"?"Daviplata":method==="banco"?"Banco (transferencia)":"Efectivo";
   if(!name||phone.replace(/\D/g,"").length<7){toast("Completa nombre y teléfono válido");return;}
   // abono: validar y normalizar (la fuente de verdad final es el backend)
   if(pay==="partial"){
@@ -343,9 +445,9 @@ async function confirmReserve(n){
   if(online){
     try{
       const res=await fetch(API+"/raffles/"+r.id+"/reserve",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({number:n,name,phone,payment:pay,paidAmount})});
+        body:JSON.stringify({number:n,name,phone,payment:pay,paidAmount,method})});
       const data=await res.json().catch(()=>({}));
-      if(res.ok){ok=true;}
+      if(res.ok){ok=true;if(data.token){try{localStorage.setItem("rftk_"+r.id+"_"+n,data.token);}catch(e){}}}
       else{errMsg=data.error||"No se pudo apartar.";}
     }catch(e){errMsg="Sin conexión. Intenta de nuevo.";}
   }else{
@@ -362,15 +464,21 @@ async function confirmReserve(n){
   await loadRaffles(); renderBoard(); updateProgress();
   const payTxt=pay==="paid"?"Pago inmediato":pay==="partial"?"Abono (pago parcial)":"Pendiente de pago";
   const aboLine=pay==="partial"?`\nAbono ahora: ${fmt(paidAmount)}\nSaldo pendiente: ${fmt(price-paidAmount)}`:"";
-  const msg=`🎟️ *NUEVA RESERVA DE RIFA*\n\n${r.name} — ${r.prizeName||""}\nBoleta: *${n}*  (serie: ${seriesOf(n).join(", ")})\nValor: ${fmt(r.price)}\nForma de pago: ${payTxt}${aboLine}\n\nNombre: ${name}\nTeléfono: ${phone}\n\nQuiero apartar esta boleta. ¿Cómo realizo el pago?`;
+  const msg=`🎟️ *NUEVA RESERVA DE RIFA*\n\n${r.name} — ${r.prizeName||""}\nBoleta: *${n}*  (serie: ${seriesOf(n).join(", ")})\nValor: ${fmt(r.price)}\nTipo de pago: ${payTxt}\nForma de pago: ${methodTxt}${aboLine}\n\nNombre: ${name}\nTeléfono: ${phone}\n\nQuiero apartar esta boleta. ¿Cómo realizo el pago?`;
   const wa=waLink(msg);
   const aboHtml=pay==="partial"?`<br>Abono: <b style="color:var(--text)">${fmt(paidAmount)}</b> · falta <b style="color:var(--text)">${fmt(price-paidAmount)}</b>`:"";
   $("#rmodalBox").innerHTML=`<div class="rf-success">
     <div class="check">✓</div>
     <h3 class="serif" style="font-size:1.5rem">¡Boleta ${n} apartada!</h3>
-    <p style="color:var(--muted);font-size:.9rem;margin:8px 0 18px">${r.name} · a nombre de <b style="color:var(--text)">${name}</b> · ${payTxt}.${aboHtml}<br>Tu número quedó bloqueado para todos. Envía tu reserva para coordinar el pago.</p>
+    <p style="color:var(--muted);font-size:.9rem;margin:8px 0 18px">${r.name} · a nombre de <b style="color:var(--text)">${name}</b> · ${payTxt} · ${methodTxt}.${aboHtml}<br>Tu número quedó bloqueado para todos. Envía tu reserva para coordinar el pago.</p>
     <a class="btn btn-wa btn-lg" href="${wa}" target="_blank" rel="noopener" style="width:100%;justify-content:center">Enviar reserva por WhatsApp</a>
+    ${payInfoHTML(method)}
+    ${(online&&(method==="nequi"||method==="daviplata"||method==="banco"))?`
+    <input type="file" id="rfProofFile" accept="image/*" style="display:none">
+    <button class="btn btn-ghost" id="rfProofBtn" style="width:100%;justify-content:center;margin-top:10px">📷 Ya pagué — subir comprobante</button>
+    <p id="rfProofMsg" style="font-size:.78rem;color:var(--muted-2);text-align:center;margin-top:6px"></p>`:""}
     <button class="btn btn-ghost" id="rfDone" style="width:100%;justify-content:center;margin-top:10px">Listo</button></div>`;
+  bindCopy($("#rmodalBox"));wireProof(r.id,n);
   $("#rfDone").addEventListener("click",()=>{closeReserve();selected=null;renderBoard();updateProgress();});
   toast("<b>✓</b> Boleta "+n+" apartada");
 }
