@@ -154,6 +154,7 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
   <div class="wrap hdr">
     <div class="brand">Panel <b>Admin</b><small>Perfumes Originales</small></div>
     <div class="sp"></div>
+    <div id="modeChip" style="font-size:.72rem;color:var(--muted-2);display:flex;align-items:center;gap:6px"></div>
     <div class="unsaved" id="unsaved"><span class="dotw"></span>Cambios sin publicar</div>
     <a class="btn btn-ghost btn-sm" href="admin-rifas.html">🎟️ Rifas</a>
     <button class="btn btn-ghost btn-sm" id="themeBtn">◐ Tema</button>
@@ -211,9 +212,25 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
   </div>
 </div>
 
+<!-- login modal (modo servidor / publicación en vivo) -->
+<div class="modal" id="loginModal">
+  <div class="overlay open" style="position:absolute"></div>
+  <div class="box">
+    <h3>Ingresar al panel</h3>
+    <p>Escribe tu usuario y contraseña para publicar en vivo.</p>
+    <div class="field"><label class="fl">Usuario</label><input id="lgUser" autocomplete="username"></div>
+    <div class="field" style="margin-top:10px"><label class="fl">Contraseña</label><input id="lgPass" type="password" autocomplete="current-password"></div>
+    <div style="color:var(--red);font-size:.82rem;min-height:18px;margin-top:8px" id="lgErr"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-ghost" id="lgCancel">Cancelar</button>
+      <button class="btn btn-gold" id="lgOk">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<input type="file" id="photoInput" accept="image/*" hidden>
+<input type="file" id="photoInput" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.heic,.heif,.bmp" multiple hidden>
 
 <script src="js/config.js"></script>
 <script src="js/products-data.js"></script>
@@ -224,6 +241,51 @@ const CFG=window.SITE_CONFIG||{};
 const IMG="assets/products/";
 const DRAFT_KEY="po_admin_draft";
 const $=(s,c)=>(c||document).querySelector(s), $$=(s,c)=>Array.from((c||document).querySelectorAll(s));
+
+// ================= modo servidor (publicación en vivo) =================
+const API=(location.protocol==="file:")?null:(location.origin+"/api");
+const TKEY="po_admin_token";
+let token=null; try{token=localStorage.getItem(TKEY);}catch(e){}
+let online=false;
+async function apiFetch(path,opts){
+  opts=opts||{}; opts.headers=opts.headers||{};
+  if(token)opts.headers.Authorization="Bearer "+token;
+  const r=await fetch(API+path,opts);
+  if(r.status===401){token=null;try{localStorage.removeItem(TKEY);}catch(e){}}
+  return r;
+}
+function setMode(on){
+  const chip=$("#modeChip"); if(!chip)return;
+  chip.innerHTML=on
+    ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Publicación en vivo'
+    : '<span style="width:8px;height:8px;border-radius:50%;background:var(--muted-2);display:inline-block"></span> Modo local (descarga)';
+}
+async function checkOnline(){
+  if(!API){online=false;setMode(false);return;}
+  try{const r=await fetch(API+"/health",{cache:"no-store"});online=r.ok;}catch(e){online=false;}
+  setMode(online);
+}
+// login modal -> Promise<bool>
+let loginResolver=null;
+function requireLogin(){
+  return new Promise(resolve=>{
+    if(token){resolve(true);return;}
+    loginResolver=resolve;
+    $("#lgErr").textContent="";$("#lgUser").value="";$("#lgPass").value="";
+    $("#loginModal").classList.add("open");setTimeout(()=>$("#lgUser").focus(),50);
+  });
+}
+async function doLogin(){
+  const u=$("#lgUser").value.trim(), p=$("#lgPass").value;
+  if(!u||!p){$("#lgErr").textContent="Escribe usuario y contraseña";return;}
+  try{
+    const r=await fetch(API+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})});
+    if(!r.ok)throw 0;
+    const d=await r.json();token=d.token;try{localStorage.setItem(TKEY,token);}catch(e){}
+    $("#loginModal").classList.remove("open");
+    if(loginResolver){loginResolver(true);loginResolver=null;}
+  }catch(e){$("#lgErr").textContent="Usuario o contraseña incorrectos";}
+}
 
 // ---- load working copy (draft from localStorage, else from site data) ----
 let base=(window.CATALOG?JSON.parse(JSON.stringify(window.CATALOG)):{products:[],currency:"COP"});
@@ -371,7 +433,7 @@ function renderEditor(){
 
     <div class="section-t">Fotos</div>
     <div class="photos" id="e_photos"></div>
-    <div class="hint">Las fotos nuevas se renombran con un código único (evita duplicados). Al publicar se descargan: muévelas a <code>web/assets/products/</code>.</div>`;
+    <div class="hint">Toca <b>+</b> para agregar fotos (puedes elegir varias a la vez, cualquier formato). Con el servidor activo se <b>suben al instante</b>; luego pulsa <b>Publicar cambios</b> para que se vean en la tienda.</div>`;
   renderEditorPhotos();
 }
 function renderEditorPhotos(){
@@ -413,24 +475,78 @@ function closeDrawer(){$("#overlay").classList.remove("open");$("#drawer").class
 // ---- photo add with hash + rename + dedupe ----
 let photoTarget=null;
 $("#photoInput").addEventListener("change",async e=>{
-  const file=e.target.files[0];e.target.value="";if(!file||!editing)return;
+  const files=Array.from(e.target.files||[]); e.target.value="";
+  if(!files.length||!editing) return;
+  for(const file of files){ await addOnePhoto(file); }
+});
+// Agrega una foto. En modo servidor la COMPRIME y la SUBE al instante; en modo
+// local la guarda como blob y se descarga al publicar.
+
+// canvas -> Blob JPEG (promesa)
+function canvasToBlob(c,q){ return new Promise(res=>c.toBlob(res,"image/jpeg",q)); }
+// Reduce la imagen a máx 1600px y ~2MB (JPEG). Devuelve un Blob, o null si no se
+// pudo decodificar (p. ej. HEIC en algunos navegadores de escritorio).
+async function shrinkImage(file){
+  const dataUrl=await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(file); });
+  if(!dataUrl) return null;
+  const img=await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=dataUrl; });
+  if(!img||!img.naturalWidth) return null;
+  const MAXDIM=1600; let w=img.naturalWidth, h=img.naturalHeight;
+  const scale=Math.min(1, MAXDIM/Math.max(w,h));
+  w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  c.getContext("2d").drawImage(img,0,0,w,h);
+  const TARGET=2*1024*1024; let q=0.85, blob=await canvasToBlob(c,q);
+  while(blob&&blob.size>TARGET&&q>0.4){ q-=0.15; blob=await canvasToBlob(c,q); }
+  return blob;
+}
+async function addOnePhoto(file){
+  if(!editing) return;
+  editing.photos=editing.photos||[];
+  const sku=((editing.sku||(editing.brand||"NEW").slice(0,3))+"").toUpperCase().replace(/[^A-Z0-9\-]/g,"")||"NEW";
+  if(online){
+    if(!(token||await requireLogin())) return;
+    // 1) Comprimir antes de enviar (evita el límite de tamaño del servidor y acelera la subida)
+    let toSend=file, sendName=(file.name||"foto.jpg");
+    try{
+      const shrunk=await shrinkImage(file);
+      if(shrunk){ toSend=shrunk; sendName=sku+"-foto.jpg"; }
+      else if(file.size>11*1024*1024){
+        toast("<b>⚠</b> No pude procesar esa foto (formato no compatible) y pesa demasiado. Reenvíala por WhatsApp y sube esa, o usa una en JPG/PNG.");
+        return;
+      }
+    }catch(e){ /* si algo falla, se intenta con el archivo original */ }
+    // 2) Subir
+    try{
+      const fd=new FormData(); fd.append("sku",sku); fd.append("photo",toSend,sendName);
+      let r=await apiFetch("/admin/products/photo",{method:"POST",body:fd});
+      if(r.status===401){ if(!await requireLogin())return; r=await apiFetch("/admin/products/photo",{method:"POST",body:fd}); }
+      if(r.status===413){ toast("<b>⚠</b> La foto pesa demasiado. Reenvíala por WhatsApp y sube esa."); return; }
+      if(!r.ok){ toast("<b>⚠</b> No se pudo subir la foto (error "+r.status+"). Intenta de nuevo."); return; }
+      const dd=await r.json().catch(()=>({}));
+      if(dd.filename){
+        if(!editing.photos.includes(dd.filename)){ editing.photos.push(dd.filename); markDirty(); }
+        renderEditorPhotos();
+        toast(dd.duplicated?"<b>✓</b> Foto agregada":"<b>+</b> Foto subida");
+      }else{
+        toast("<b>⚠</b> El servidor no devolvió la foto. Intenta de nuevo.");
+      }
+    }catch(err){ toast("<b>⚠</b> No se pudo subir la foto. Revisa tu conexión e intenta de nuevo."); }
+    return;
+  }
+  // modo local (sin servidor): blob + descarga al publicar
   const buf=await file.arrayBuffer();
-  const hash=await sha256hex(buf);const hash8=hash.slice(0,8);
-  // dedupe: same hash8 already used anywhere?
-  const allPhotos=cat.products.flatMap(p=>p.photos||[]).concat(editing.photos||[]);
-  if(allPhotos.some(f=>typeof f==="string"&&f.includes(hash8))){toast("Esa foto ya existe (duplicada)");return;}
-  const sku=(editing.sku|| (editing.brand||"NEW").slice(0,3).toUpperCase());
+  const hash8=(await sha256hex(buf)).slice(0,8);
   const seq=((editing.photos||[]).filter(f=>typeof f==="string").length)+1;
   const name=`${sku}-${String(seq).padStart(2,"0")}-${hash8}.jpg`;
-  const blobUrl=URL.createObjectURL(file);
-  editing.photos=editing.photos||[];
+  if(editing.photos.includes(name)){ toast("Esa foto ya está en este producto"); return; }
   editing.photos.push(name);
   pendingDownloads.push({name,file});
   renderEditorPhotos();
-  // show preview by swapping the just-added name to blobUrl visually
-  const imgs=$$("#e_photos .photo img");if(imgs.length)imgs[imgs.length-1].src=blobUrl;
-  toast("<b>+</b> Foto agregada: "+name);
-});
+  const imgs=$$("#e_photos .photo img"); if(imgs.length) imgs[imgs.length-1].src=URL.createObjectURL(file);
+  markDirty();
+  toast("<b>+</b> Foto agregada");
+}
 async function sha256hex(buf){
   if(crypto.subtle){const d=await crypto.subtle.digest("SHA-256",buf);
     return Array.from(new Uint8Array(d)).map(b=>b.toString(16).padStart(2,"0")).join("");}
@@ -455,14 +571,50 @@ $("#cfOk").addEventListener("click",()=>{cat.products=cat.products.filter(p=>p.i
 $("#cfCancel").addEventListener("click",()=>$("#confirm").classList.remove("open"));
 $("#confirmBg").addEventListener("click",()=>$("#confirm").classList.remove("open"));
 
-// ---- publish (export) ----
-function publish(){
+// ---- publish ----
+async function publish(){
   cat.generated_on=new Date().toISOString().slice(0,10);
   cat.total_products=cat.products.length;
+  if(online){ await publishOnline(); return; }
+  publishOffline();
+}
+// Modo servidor: sube fotos nuevas y publica el catálogo EN VIVO (sin archivos)
+async function publishOnline(){
+  const ok = token || await requireLogin();
+  if(!ok) return;
+  const btn=$("#saveBtn"); const prev=btn.innerHTML; btn.innerHTML="Publicando…";
+  try{
+    // 1) subir fotos nuevas que sigan referenciadas por un producto
+    const used=new Set(cat.products.flatMap(p=>p.photos||[]));
+    const toUpload=pendingDownloads.filter(d=>used.has(d.name));
+    for(const d of toUpload){
+      const sku=d.name.split("-").slice(0,-2).join("-")||"NEW";
+      const fd=new FormData(); fd.append("sku",sku); fd.append("photo",d.file,d.name);
+      let r=await apiFetch("/admin/products/photo",{method:"POST",body:fd});
+      if(r.status===401){ if(!await requireLogin())return; r=await apiFetch("/admin/products/photo",{method:"POST",body:fd}); }
+      if(!r.ok) throw new Error("foto");
+      const dd=await r.json();
+      // el servidor puede devolver un nombre final distinto -> actualizar referencias
+      if(dd.filename && dd.filename!==d.name){
+        cat.products.forEach(p=>{ if(Array.isArray(p.photos)){ const i=p.photos.indexOf(d.name); if(i>=0)p.photos[i]=dd.filename; } });
+      }
+    }
+    // 2) publicar el catálogo
+    let r=await apiFetch("/admin/products/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({catalog:cat})});
+    if(r.status===401){ if(!await requireLogin())return; r=await apiFetch("/admin/products/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({catalog:cat})}); }
+    if(!r.ok) throw new Error("publish");
+    pendingDownloads=[]; persist();
+    dirty=false;$("#unsaved").classList.remove("show");
+    toast("<b>✓</b> Publicado en vivo. El sitio ya muestra los cambios.");
+  }catch(e){
+    toast("No se pudo publicar en vivo. Revisa tu sesión o conexión e intenta de nuevo.");
+  }finally{ btn.innerHTML=prev; }
+}
+// Modo local (respaldo): descarga los archivos como antes
+function publishOffline(){
   const js="// Generado por el Panel Admin — "+new Date().toLocaleString("es-CO")+"\nwindow.CATALOG = "+JSON.stringify(cat,null,2)+";\n";
   download("products-data.js",new Blob([js],{type:"application/javascript"}));
   download("products.json",new Blob([JSON.stringify(cat,null,2)],{type:"application/json"}));
-  // download only new photos that ended up referenced by a product
   const used=new Set(cat.products.flatMap(p=>p.photos||[]));
   let n=0;
   pendingDownloads.filter(d=>used.has(d.name)).forEach(d=>{download(d.name,d.file);n++;});
@@ -504,6 +656,9 @@ try{const t=localStorage.getItem("po_theme");if(t)document.documentElement.setAt
 // ---- buttons ----
 $("#addBtn").addEventListener("click",()=>openEditor(0));
 $("#saveBtn").addEventListener("click",publish);
+$("#lgOk").addEventListener("click",doLogin);
+$("#lgPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+$("#lgCancel").addEventListener("click",()=>{$("#loginModal").classList.remove("open");if(loginResolver){loginResolver(false);loginResolver=null;}});
 $("#applyBtn").addEventListener("click",applyEditor);
 $("#cancelBtn").addEventListener("click",closeDrawer);
 $("#drawerClose").addEventListener("click",closeDrawer);
@@ -514,6 +669,7 @@ function renderAll(){renderStats();renderTable();}
 renderAll();
 if(dirty)$("#unsaved").classList.add("show");
 if(!window.CATALOG){toast("No se encontró products-data.js");}
+checkOnline();
 })();
 </script>
 </body>

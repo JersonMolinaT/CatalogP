@@ -59,6 +59,11 @@ COMMERCIAL = {
     "LAT-AJW": {"price": 250000, "price_old": None, "stock": 13},
     "LAT-FAK": {"price": 250000, "price_old": None, "stock": 4},
     "LAT-HNG": {"price": 250000, "price_old": None, "stock": 8},
+    # --- Referencias nuevas (jul 2026) ---
+    "LAT-ARA": {"price": 250000, "price_old": None, "stock": 6},
+    "ORI-AMB": {"price": 250000, "price_old": None, "stock": 3},
+    "AL-AMB":  {"price": 250000, "price_old": None, "stock": 3},
+    "VIC-SWI": {"price": 250000, "price_old": None, "stock": None},
 }
 
 # Etiquetas de categoria para los filtros/secciones del Home
@@ -71,6 +76,10 @@ TAGS = {
     "LAT-AJW": ["Árabes", "Más vendidos"],
     "LAT-FAK": ["Árabes"],
     "LAT-HNG": ["Árabes", "Nuevos"],
+    "LAT-ARA": ["Árabes", "Nuevos", "Más vendidos"],
+    "ORI-AMB": ["Árabes", "Premium", "Nuevos"],
+    "AL-AMB":  ["Árabes", "Nicho", "Nuevos"],
+    "VIC-SWI": ["Premium", "Nuevos"],
 }
 
 # ----------------------------------------------------------------------------
@@ -244,6 +253,92 @@ PRODUCTS = [
             "composicion con el sandalo cremoso y el cashmeran aterciopelado, cerrando "
             "con musgo terroso. Una estela pulida y duradera, como un postre servido "
             "sobre madera oscura."
+        ),
+    },
+    {
+        "sku": "LAT-ARA",
+        "brand": "Lattafa",
+        "name": "Asad",
+        "gender": "Hombre",
+        "family": "Amaderada frutal especiada",
+        "concentration": "Eau de Parfum",
+        "size_ml": 100,
+        "year": 2021,
+        "inspiration": "Inspirado en Creed Aventus",
+        "notes_top": ["Pimienta negra", "Tabaco", "Pina"],
+        "notes_heart": ["Pachuli", "Cafe", "Iris"],
+        "notes_base": ["Vainilla", "Ambar", "Maderas secas", "Benjui", "Labdano"],
+        "description_es": (
+            "Masculino potente y magnetico, la carta arabe inspirada en Aventus. Abre "
+            "con un chispazo de pina jugosa, pimienta negra y tabaco que impone caracter. "
+            "El corazon de pachuli, cafe e iris aporta profundidad ahumada y elegante, y "
+            "el fondo de vainilla, ambar, maderas secas, benjui y labdano deja una estela "
+            "calida y duradera. Seguro y versatil: perfecto para la noche, reuniones y "
+            "ocasiones donde quieras destacar."
+        ),
+    },
+    {
+        "sku": "ORI-AMB",
+        "brand": "Orientica",
+        "name": "Amber Rouge",
+        "gender": "Unisex",
+        "family": "Amaderada especiada ambarina",
+        "concentration": "Eau de Parfum",
+        "size_ml": 100,
+        "year": 2021,
+        "inspiration": "Original",
+        "notes_top": ["Azafran", "Jazmin"],
+        "notes_heart": ["Madera ambarina", "Ambar gris"],
+        "notes_base": ["Cedro", "Resina de abeto"],
+        "description_es": (
+            "Un lujo amaderado-especiado, intenso y adictivo. Abre con el calor del "
+            "azafran y un jazmin sedoso que lo vuelve sofisticado desde el primer instante. "
+            "El corazon de madera ambarina y ambar gris crea una firma envolvente y radiante, "
+            "sobre un fondo de cedro y resina de abeto que aporta cuerpo y una estela "
+            "prolongada. Unisex, elegante y de gran presencia: pensado para noches frescas "
+            "y ocasiones especiales."
+        ),
+    },
+    {
+        "sku": "AL-AMB",
+        "brand": "Al Haramain",
+        "name": "Amber Oud Gold Edition",
+        "gender": "Unisex",
+        "family": "Oriental ambarina frutal",
+        "concentration": "Eau de Parfum",
+        "size_ml": 100,
+        "year": 2018,
+        "inspiration": "Original",
+        "notes_top": ["Bergamota", "Notas verdes"],
+        "notes_heart": ["Melon", "Pina", "Ambar", "Notas dulces"],
+        "notes_base": ["Maderas", "Vainilla", "Almizcle"],
+        "description_es": (
+            "Ambarino luminoso y facil de amar, un exito de ventas de Al Haramain. Arranca "
+            "fresco y afrutado con bergamota, melon y pina sobre un guino verde, y evoluciona "
+            "hacia un corazon dulce-ambarino calido y cremoso. El fondo de maderas, vainilla "
+            "y almizcle lo hace acogedor y de buena duracion. Unisex, versatil y agradable "
+            "para el dia a dia y toda ocasion."
+        ),
+    },
+    {
+        "sku": "VIC-SWI",
+        "brand": "Victorinox",
+        "name": "Swiss Army Classic",
+        "gender": "Hombre",
+        "family": "Aromatica amaderada fresca",
+        "concentration": "Eau de Toilette",
+        "size_ml": 100,
+        "year": 1997,
+        "inspiration": "Original",
+        "notes_top": ["Menta", "Notas verdes", "Bergamota", "Yuzu", "Jengibre"],
+        "notes_heart": ["Lavanda", "Romero", "Hoja de violeta", "Edelweiss", "Geranio"],
+        "notes_base": ["Cipres", "Abeto balsamico", "Cedro", "Almizcle", "Ambar"],
+        "description_es": (
+            "Frescura alpina limpia y natural, un clasico masculino de diseno suizo. Abre "
+            "vibrante con menta, bergamota, yuzu y jengibre sobre un verde herbal, seguido "
+            "de un corazon aromatico de lavanda, romero y geranio que transmite pulcritud. "
+            "El fondo de cipres, abeto, cedro y almizcle deja una estela discreta y elegante. "
+            "Ligero y versatil: ideal para el diario, la oficina y climas calidos."
         ),
     },
 ]

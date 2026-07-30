@@ -498,7 +498,19 @@ app.get("/api/admin/collections", auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: "No se pudo generar la cobranza" }); }
 });
 
+// Productos (publicación al instante + subida de fotos)
+require("./products")(app, { auth });
+
 // 404 API
 app.use("/api", (req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
+
+// Manejo de errores (p. ej. foto demasiado pesada) -> mensaje claro en vez de 500 crudo
+app.use((err, req, res, next) => {
+  if (err && err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ error: "La imagen pesa demasiado (máx 12 MB). El panel ahora la comprime solo; recarga el panel con Ctrl+Shift+R e intenta de nuevo." });
+  }
+  console.error("Error no controlado:", err && err.message);
+  res.status(500).json({ error: "Error del servidor" });
+});
 
 app.listen(PORT, () => console.log(`API escuchando en puerto ${PORT}`));

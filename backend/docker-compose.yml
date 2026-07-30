@@ -28,6 +28,13 @@ services:
       ADMIN_USER: ${ADMIN_USER:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-perfumes123}
       PORT: 3000
+      # Carpeta pública del sitio (la que sirve NGINX). El panel escribe aquí
+      # products-data.js y las fotos al publicar. Ajusta WEB_ROOT si tu sitio
+      # está en otra ruta.
+      WEB_ROOT: ${WEB_ROOT:-/var/www/html}
+    volumes:
+      # monta el web root del host para que la API pueda publicar en vivo
+      - ${WEB_ROOT:-/var/www/html}:/var/www/html
     ports:
       - "127.0.0.1:3001:3000"   # solo accesible localmente; nginx hace de proxy
 
