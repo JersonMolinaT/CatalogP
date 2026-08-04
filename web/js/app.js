@@ -4,9 +4,13 @@
 (function () {
   "use strict";
   const CFG = window.SITE_CONFIG || {};
-  const ALL = (window.CATALOG && window.CATALOG.products) || [];
+  // El catálogo se toma SIEMPRE de la versión en vivo (API) para que lo que se
+  // publica desde el panel aparezca al instante, sin depender de la caché del
+  // navegador o del CDN. Si el API no responde, se usa el archivo estático como
+  // respaldo (window.CATALOG de products-data.js).
+  let ALL = (window.CATALOG && window.CATALOG.products) || [];
   // productos ocultos desde el panel admin (visible === false) no se muestran
-  const DATA = ALL.filter(p => p.visible !== false);
+  let DATA = ALL.filter(p => p.visible !== false);
   const IMG = "assets/products/";
   const FAV_KEY = "po_favs";
   const THEME_KEY = "po_theme";
@@ -53,7 +57,7 @@
   }
   function waProduct(p, intent) {
     const price = fmtPrice(p.price) || CFG.pricePlaceholder || "Consultar";
-    const present = `${p.size_ml} ml · ${p.concentration}`;
+    const present = [p.size_ml ? p.size_ml + " ml" : null, p.concentration].filter(Boolean).join(" · ") || "—";
     const verb = intent === "buy" ? "comprar" : intent === "quote" ? "cotizar" : "consultar disponibilidad de";
     return waLink(
       `Hola 👋, quiero ${verb}:\n\n` +
@@ -194,6 +198,7 @@
     const tags = (p.tags || []).slice(0, 2).map(t => `<span class="tag">${t}</span>`).join("");
     const saleTag = old ? `<span class="tag sale">Oferta</span>` : "";
     const img = p.photos && p.photos[0] ? IMG + p.photos[0] : "";
+    const meta = [p.family, p.size_ml ? p.size_ml + " ml" : null].filter(Boolean).join(" · ");
     return `<article class="card reveal" data-open="${p.id}">
       <div class="card-media">
         ${img ? `<img src="${img}" alt="${p.brand} ${p.name}" loading="lazy">` : ""}
@@ -202,9 +207,9 @@
         ${p.in_stock ? "" : `<div class="stock-out"><span>Agotado</span></div>`}
       </div>
       <div class="card-body">
-        <span class="card-brand">${p.brand}</span>
+        <span class="card-brand">${p.brand || ""}</span>
         <h3 class="card-name">${p.name}</h3>
-        <span class="card-fam">${p.family} · ${p.size_ml} ml</span>
+        <span class="card-fam">${meta}</span>
         <div class="card-foot">
           <div class="price">
             ${old ? `<span class="old">${old}</span>` : ""}
@@ -259,7 +264,7 @@
       .filter(([, v]) => v && v.length)
       .map(([k, v]) => `<div class="pyr-row"><span class="k">${k}</span>
         <span class="v">${v.map(n => `<span class="note">${n}</span>`).join("")}</span></div>`).join("");
-    const chips = [p.gender, p.concentration, `${p.size_ml} ml`, p.family, p.inspiration && p.inspiration !== "Original" ? p.inspiration : null]
+    const chips = [p.gender, p.concentration, p.size_ml ? `${p.size_ml} ml` : null, p.family, p.inspiration && p.inspiration !== "Original" ? p.inspiration : null]
       .filter(Boolean).map(c => `<span class="chip">${c}</span>`).join("");
 
     $("#modalBody").innerHTML = `
@@ -467,6 +472,22 @@
     buildFilters(); render(); bindNav(); bindGlobal();
     updateFavBadge(); observeReveals(); openFromHash();
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  // ---------- cargar catálogo en vivo (siempre fresco) ----------
+  async function loadCatalog() {
+    // En file:// no hay API; se queda con el archivo estático de respaldo.
+    if (location.protocol === "file:") return;
+    try {
+      const r = await fetch(location.origin + "/api/products", { cache: "no-store" });
+      if (r.ok) {
+        const d = await r.json();
+        if (d && Array.isArray(d.products) && d.products.length) {
+          ALL = d.products;
+          DATA = ALL.filter(p => p.visible !== false);
+        }
+      }
+    } catch (e) { /* sin conexión → se usa el respaldo estático */ }
+  }
+  function boot() { loadCatalog().then(init); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();
