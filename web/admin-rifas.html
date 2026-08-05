@@ -331,7 +331,7 @@ async function reload(){
 function cur(){return DB.raffles.find(r=>r.id===currentId);}
 
 function renderPrizeOptions(){
-  $("#f_prize").innerHTML=PRODUCTS.map(p=>`<option value="${p.sku}" data-name="${esc(p.brand+' '+p.name)}" data-img="${(p.photos&&p.photos[0])||''}">${p.brand} — ${p.name} (${p.sku})</option>`).join("");
+  $("#f_prize").innerHTML=PRODUCTS.map(p=>`<option value="${p.id}" data-sku="${esc(p.sku)}" data-name="${esc(p.brand+' '+p.name)}" data-img="${(p.photos&&p.photos[0])||''}">${p.brand} — ${p.name} (${p.sku})</option>`).join("");
 }
 // Carga la lista de productos EN VIVO desde el API para que el desplegable del
 // premio siempre tenga los productos recién publicados (sin caché). Respaldo: el
@@ -354,14 +354,24 @@ function renderTabs(){
     clearDirty();currentId=t.dataset.id;renderTabs();loadCurrent();}));
   $("#newBtn").addEventListener("click",createRaffle);
 }
-function updatePrizeImg(){const sku=$("#f_prize").value;const p=PRODUCTS.find(x=>x.sku===sku);$("#prizeImg").src=p&&p.photos&&p.photos[0]?IMG+p.photos[0]:"";}
+function updatePrizeImg(){const o=$("#f_prize").selectedOptions[0];const img=o?o.dataset.img:"";$("#prizeImg").src=img?IMG+img:"";}
+// Selecciona el premio guardado de la rifa. Como puede haber varios productos con
+// el MISMO SKU, desambigua por la foto guardada (prizeImage, única por producto).
+// El value de cada opción es el id único del producto.
+function selectPrize(r){
+  const sel=$("#f_prize");if(!sel)return;const opts=Array.from(sel.options);
+  let o=null;
+  if(r.prizeImage) o=opts.find(x=>x.dataset.sku===r.prizeSku&&x.dataset.img===r.prizeImage)||opts.find(x=>x.dataset.img===r.prizeImage);
+  if(!o&&r.prizeSku) o=opts.find(x=>x.dataset.sku===r.prizeSku);
+  if(o) sel.value=o.value;
+}
 
 function loadCurrent(){
   const r=cur();if(!r)return;
   clearDirty();
   $("#cfgTitle").textContent="Configuración · "+r.name;
   $("#f_name").value=r.name||"";$("#f_price").value=r.price??30000;
-  if(r.prizeSku)$("#f_prize").value=r.prizeSku;updatePrizeImg();
+  selectPrize(r);updatePrizeImg();
   $("#f_lottery").value=r.lottery||"";$("#f_date").value=r.drawDate||"";
   $("#f_info").value=r.drawInfo||"";$("#f_active").value=String(r.active!==false);
   renderNumbers();renderStats();renderBuyerCount();renderDraw();
@@ -631,7 +641,7 @@ async function saveAll(){
     if(dirtyMeta){
       const o=$("#f_prize").selectedOptions[0];
       const patch={name:$("#f_name").value,price:+$("#f_price").value||0,
-        prizeSku:$("#f_prize").value,prizeName:o?o.dataset.name:"",prizeImage:o?o.dataset.img:"",
+        prizeSku:o?o.dataset.sku:"",prizeName:o?o.dataset.name:"",prizeImage:o?o.dataset.img:"",
         lottery:$("#f_lottery").value,drawDate:$("#f_date").value,drawInfo:$("#f_info").value,
         active:$("#f_active").value==="true"};
       const rr=await api("/admin/raffles/"+currentId,{method:"PUT",body:JSON.stringify(patch)});
