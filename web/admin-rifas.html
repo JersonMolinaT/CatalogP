@@ -253,12 +253,12 @@ header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 9
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="js/config.js"></script>
-<script src="js/products-data.js"></script>
+<script src="js/products-data.js?v=20260804"></script>
 <script>
 (function(){
 "use strict";
 const CFG=window.SITE_CONFIG||{};
-const PRODUCTS=(window.CATALOG&&window.CATALOG.products)||[];
+let PRODUCTS=(window.CATALOG&&window.CATALOG.products)||[];
 const IMG="assets/products/";
 const API="/api";
 const TKEY="po_admin_token";
@@ -314,6 +314,7 @@ $("#logoutBtn").addEventListener("click",logout);
 
 async function showApp(){
   $("#login").classList.add("hidden");$("#main").classList.remove("hidden");
+  await loadProducts();
   await reload();
 }
 
@@ -329,7 +330,20 @@ async function reload(){
 }
 function cur(){return DB.raffles.find(r=>r.id===currentId);}
 
-$("#f_prize").innerHTML=PRODUCTS.map(p=>`<option value="${p.sku}" data-name="${esc(p.brand+' '+p.name)}" data-img="${(p.photos&&p.photos[0])||''}">${p.brand} — ${p.name} (${p.sku})</option>`).join("");
+function renderPrizeOptions(){
+  $("#f_prize").innerHTML=PRODUCTS.map(p=>`<option value="${p.sku}" data-name="${esc(p.brand+' '+p.name)}" data-img="${(p.photos&&p.photos[0])||''}">${p.brand} — ${p.name} (${p.sku})</option>`).join("");
+}
+// Carga la lista de productos EN VIVO desde el API para que el desplegable del
+// premio siempre tenga los productos recién publicados (sin caché). Respaldo: el
+// archivo estático window.CATALOG.
+async function loadProducts(){
+  try{
+    const r=await fetch(API+"/products",{cache:"no-store"});
+    if(r.ok){ const d=await r.json(); if(d&&Array.isArray(d.products)&&d.products.length){ PRODUCTS=d.products; } }
+  }catch(e){/* sin conexión → se usa el respaldo estático */}
+  renderPrizeOptions();
+}
+renderPrizeOptions();
 
 function renderTabs(){
   $("#tabs").innerHTML=DB.raffles.map(r=>`<div class="rtab ${r.id===currentId?"active":""}" data-id="${r.id}">${r.name}${r.active===false?" (oculta)":""}</div>`).join("")
